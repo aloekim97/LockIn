@@ -1,4 +1,4 @@
-import RightBox from "../../../../ui/nonspecific/right-box";
+import RightBox from "../../ui/nonspecific/right-box";
 import { View, Text } from "react-native";
 
 export default function Calendar() {

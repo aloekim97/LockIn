@@ -1,6 +1,6 @@
 import { View, Text, useColorScheme, TouchableOpacity } from 'react-native';
 import LeftBox from '../../ui/nonspecific/left-box';
-import TaskBox from '../../ui/home-ui/task-box';
+import TodaysTaskBox from './components/todays-tasks';
 import { Task } from '../../types/tasks';
 import AddTaskModal from '../../modals/addTasksModal';
 import { useState, useEffect } from 'react';
@@ -116,7 +116,7 @@ export default function Tasks() {
 
   return (
     <LeftBox>
-      <TaskBox
+      <TodaysTaskBox
         setModalVisible={setModalVisible}
         todayTasks={todayTasks}
         renderTask={renderTask}

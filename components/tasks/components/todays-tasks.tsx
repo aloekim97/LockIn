@@ -7,7 +7,7 @@ import {
   FlatList,
   ListRenderItem,
 } from 'react-native';
-import { Task } from '../../types/tasks';
+import { Task } from '../../../types/tasks';
 
 interface TaskBoxProps {
   setModalVisible: (visible: boolean) => void;
@@ -16,19 +16,19 @@ interface TaskBoxProps {
   isDark: boolean;
 }
 
-const TaskBox: React.FC<TaskBoxProps> = ({
+const TodaysTaskBox: React.FC<TaskBoxProps> = ({
   setModalVisible,
   todayTasks,
   renderTask,
   isDark,
 }) => {
-    const getTodayDate = () => {
+  const getTodayDate = () => {
     const today = new Date();
-    const options: Intl.DateTimeFormatOptions = { 
+    const options: Intl.DateTimeFormatOptions = {
       weekday: 'short',
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     };
     return today.toLocaleDateString('en-US', options);
   };
@@ -42,11 +42,13 @@ const TaskBox: React.FC<TaskBoxProps> = ({
           marginBottom: 15,
         }}
       >
-        <Text style={{ 
-          fontSize: 20, 
-          fontWeight: '600', 
-          color: isDark ? '#FFFFFF' : '#2C3E50' 
-        }}>
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: '600',
+            color: isDark ? '#FFFFFF' : '#2C3E50',
+          }}
+        >
           {getTodayDate()}
         </Text>
         <TouchableOpacity
@@ -61,11 +63,13 @@ const TaskBox: React.FC<TaskBoxProps> = ({
           }}
         >
           <Plus size={20} color={isDark ? '#0A84FF' : '#4A6FA5'} />
-          <Text style={{ 
-            color: isDark ? '#0A84FF' : '#4A6FA5', 
-            fontWeight: '500', 
-            marginLeft: 5 
-          }}>
+          <Text
+            style={{
+              color: isDark ? '#0A84FF' : '#4A6FA5',
+              fontWeight: '500',
+              marginLeft: 5,
+            }}
+          >
             Add Task
           </Text>
         </TouchableOpacity>
@@ -134,4 +138,4 @@ const TaskBox: React.FC<TaskBoxProps> = ({
   );
 };
 
-export default TaskBox;
+export default TodaysTaskBox;
