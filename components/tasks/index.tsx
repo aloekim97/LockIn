@@ -1,10 +1,11 @@
-import { View, Text, useColorScheme, TouchableOpacity } from 'react-native';
+import { View, Text, useColorScheme, TouchableOpacity, Alert } from 'react-native';
 import LeftBox from '../../ui/nonspecific/left-box';
 import TodaysTaskBox from './components/todays-tasks';
 import { Task } from '../../types/tasks';
 import AddTaskModal from '../../modals/addTasksModal';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TaskStorage } from '../../storage/taskStorage';
 
 export default function Tasks() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -42,14 +43,20 @@ export default function Tasks() {
   };
 
   // Function to add a new task
-  const handleAddTask = (title: string, dueDate?: Date) => {
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: title,
-      completed: false,
-      dueDate: dueDate || new Date(),
-    };
-    setTodayTasks([...todayTasks, newTask]);
+  const handleAddTask = async (task: Omit<Task, 'id'>) => {
+    try {
+      const newTask: Task = {
+        ...task,
+        id: Date.now().toString(),
+      };
+
+      await TaskStorage.addTask(newTask);
+      await loadTasks(); // Reload to show new task
+      Alert.alert('Success', 'Task added successfully!');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      Alert.alert('Error', 'Failed to add task');
+    }
   };
 
   // Function to toggle task completion
