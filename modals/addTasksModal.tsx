@@ -19,7 +19,7 @@ import ToggleSwitch from '../ui/nonspecific/toggle-switch';
 import ConfirmButton from '../ui/nonspecific/confirm-button';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Task } from '../types/tasks';
-import { hours } from '../scrollData/times';
+import { hours } from '../constants/scrollData/times';
 import ScrollPicker from '../ui/nonspecific/scroll-picker';
 
 interface AddTaskModalProps {

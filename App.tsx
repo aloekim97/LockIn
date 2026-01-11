@@ -7,7 +7,7 @@ import HomeScreen from './tabs/home';
 import SettingsScreen from './tabs/settings';
 import plan from './tabs/plan';
 import WorkScreen from './tabs/work';
-import { initializeLockInFolder } from './utils/fileHelper';
+import { initializeLockInFolder } from './utils/fileSystem';
 
 const Colors = {
   light: {

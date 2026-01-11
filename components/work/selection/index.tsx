@@ -5,7 +5,7 @@ import { styles } from '../../../tabs/home/homeStyles';
 import { Colors } from '../../../globalcss';
 import { useEffect, useState } from 'react';
 import WorkList from '../workList';
-import { listLockInItems } from '../../../utils/folderHelper';
+import { listLockInItems } from '../../../utils/fileSystem';
 
 export default function Selection() {
   const colorScheme = useColorScheme();

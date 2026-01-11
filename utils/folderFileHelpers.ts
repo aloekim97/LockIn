@@ -1,0 +1,244 @@
+import * as FileSystem from 'expo-file-system';
+import {
+  createFolder as createFolderBase,
+  writeFile,
+  listSubfolders,
+  listFiles,
+  getDirectoryContents,
+  deleteItem,
+  readFile,
+  renameItem,
+  getItemInfo,
+} from './fileSystem';
+
+export interface File {
+  id: string;
+  title: string;
+  folder: string;
+  fileName: string;
+  updatedAt: string;
+  isNew?: boolean;
+}
+
+export interface Folder {
+  name: string;
+  fileCount: number;
+}
+
+/**
+ * Load all folders with their file counts
+ * @returns Array of folders with file counts
+ */
+export const loadFolders = async (): Promise<Folder[]> => {
+  try {
+    const folderNames = await listSubfolders();
+    const foldersWithCounts: Folder[] = [];
+    
+    for (const name of folderNames) {
+      const fileList = await listFiles(name);
+      foldersWithCounts.push({
+        name,
+        fileCount: fileList.length,
+      });
+    }
+    
+    return foldersWithCounts;
+  } catch (error) {
+    console.error('Failed to load folders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Load all files from a specific folder
+ * @param folderName - Name of the folder to load files from
+ * @returns Array of files in the folder
+ */
+export const loadFilesFromFolder = async (folderName: string): Promise<File[]> => {
+  try {
+    const items = await getDirectoryContents(folderName);
+    const fileArray: File[] = [];
+    
+    for (const item of items) {
+      if (!item.isDirectory && item.name.endsWith('.txt')) {
+        fileArray.push({
+          id: item.name,
+          title: item.name.replace('.txt', ''),
+          folder: folderName,
+          fileName: item.name,
+          updatedAt: new Date(item.modificationTime || Date.now()).toISOString(),
+        });
+      }
+    }
+    
+    return fileArray;
+  } catch (error) {
+    console.error('Failed to load files from folder:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new folder
+ * @param folderName - Name of the folder to create
+ * @returns Success boolean
+ */
+export const createFolder = async (folderName: string): Promise<boolean> => {
+  try {
+    if (!folderName.trim()) {
+      throw new Error('Folder name cannot be empty');
+    }
+
+    await createFolderBase(folderName);
+    return true;
+  } catch (error) {
+    console.error('Failed to create folder:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new file in a folder
+ * @param folderName - Name of the folder
+ * @param fileName - Name of the file (without .txt extension)
+ * @param content - Optional initial content
+ * @returns URI of the created file
+ */
+export const createFile = async (
+  folderName: string,
+  fileName: string,
+  content?: string
+): Promise<string> => {
+  try {
+    if (!fileName.trim()) {
+      throw new Error('File name cannot be empty');
+    }
+
+    const relativePath = `${folderName}/${fileName}.txt`;
+    const fileContent = content || `# ${fileName}\n\nStart writing here...`;
+    
+    const fileUri = await writeFile(relativePath, fileContent, false);
+    return fileUri;
+  } catch (error) {
+    console.error('Failed to create file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a folder and all its files
+ * @param folderName - Name of the folder to delete
+ * @returns Success boolean
+ */
+export const deleteFolder = async (folderName: string): Promise<boolean> => {
+  try {
+    await deleteItem(folderName);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete folder:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a specific file
+ * @param folderName - Name of the folder containing the file
+ * @param fileName - Name of the file to delete (with extension)
+ * @returns Success boolean
+ */
+export const deleteFile = async (
+  folderName: string,
+  fileName: string
+): Promise<boolean> => {
+  try {
+    const relativePath = `${folderName}/${fileName}`;
+    await deleteItem(relativePath);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Read the content of a file
+ * @param folderName - Name of the folder containing the file
+ * @param fileName - Name of the file to read (with extension)
+ * @returns File content as string
+ */
+export const readFileContent = async (
+  folderName: string,
+  fileName: string
+): Promise<string> => {
+  try {
+    const relativePath = `${folderName}/${fileName}`;
+    return await readFile(relativePath);
+  } catch (error) {
+    console.error('Failed to read file content:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update the content of a file
+ * @param folderName - Name of the folder containing the file
+ * @param fileName - Name of the file to update (with extension)
+ * @param content - New content for the file
+ * @returns Success boolean
+ */
+export const updateFileContent = async (
+  folderName: string,
+  fileName: string,
+  content: string
+): Promise<boolean> => {
+  try {
+    const relativePath = `${folderName}/${fileName}`;
+    await writeFile(relativePath, content, false);
+    return true;
+  } catch (error) {
+    console.error('Failed to update file content:', error);
+    throw error;
+  }
+};
+
+/**
+ * Rename a file
+ * @param folderName - Name of the folder containing the file
+ * @param oldFileName - Current file name (with extension)
+ * @param newFileName - New file name (without extension)
+ * @returns Success boolean
+ */
+export const renameFile = async (
+  folderName: string,
+  oldFileName: string,
+  newFileName: string
+): Promise<boolean> => {
+  try {
+    const oldPath = `${folderName}/${oldFileName}`;
+    const newPath = `${folderName}/${newFileName}.txt`;
+    await renameItem(oldPath, newPath);
+    return true;
+  } catch (error) {
+    console.error('Failed to rename file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get file metadata
+ * @param folderName - Name of the folder containing the file
+ * @param fileName - Name of the file (with extension)
+ * @returns File info object
+ */
+export const getFileMetadata = async (
+  folderName: string,
+  fileName: string
+): Promise<FileSystem.FileInfo> => {
+  try {
+    const relativePath = `${folderName}/${fileName}`;
+    return await getItemInfo(relativePath);
+  } catch (error) {
+    console.error('Failed to get file metadata:', error);
+    throw error;
+  }
+};

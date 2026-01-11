@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+// components/WorkList.tsx
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   useColorScheme,
   View,
@@ -9,205 +10,208 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../globalcss';
-import { styles as homeStyles } from '../../../tabs/home/homeStyles';
 import BoxHeaderAdd from '../../../ui/nonspecific/box-header+';
-import FileItem from '../../../ui/nonspecific/file-item';
+import FileItem from './file-item';
+import Breadcrumb from './breadcrumb';
+import DropdownModal from '../../../modals/dropdownModal';
+import { useFileSystem } from '../../../hooks/usefileSystem';
 import {
   getDirectoryContents,
   createFolder,
   writeFile,
   FileSystemItem,
-} from '../../../utils/fileNavigation';
+} from '../../../utils/fileSystem';
 
 interface WorkListProps {
   setSelected?: (path: string, isDirectory: boolean) => void;
 }
 
+const ITEM_HEIGHT = 50;
+
 export default function WorkList({ setSelected }: WorkListProps) {
-  const [status, setStatus] = useState<string>('Loading...');
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
-  const [create, setCreate] = useState('');
-  const [currentPath, setCurrentPath] = useState('');
-  const [items, setItems] = useState<FileSystemItem[]>([]);
-  const [selectedItemPath, setSelectedItemPath] = useState<string | null>(null);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [dropdownAnchor, setDropdownAnchor] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
+  const [activeItem, setActiveItem] = useState<FileSystemItem | null>(null);
+  const itemRefs = useRef<Record<string, View | null>>({});
 
-  const options = ['+ New Folder', '+ New Note'];
+  const {
+    status,
+    currentPath,
+    items,
+    selectedItemPath,
+    setCurrentPath,
+    createNote,
+    createNewFolder,
+    navigateToParent,
+    navigateToPath,
+    selectItem,
+  } = useFileSystem();
 
-  useEffect(() => {
-    loadDirectory(currentPath);
-  }, [currentPath]);
+  const headerOptions = useMemo(() => ['+ New Folder', '+ New Note'], []);
+  const fileOptions = useMemo(() => ['Rename', 'Delete', 'Move'], []);
 
-  useEffect(() => {
-    handleCreate();
-  }, [create]);
-
-  const loadDirectory = async (path: string) => {
-    setStatus('Loading...');
-    try {
-      const contents = await getDirectoryContents(path);
-      setItems(contents);
-      setStatus(contents.length === 0 ? 'No files or folders' : '');
-    } catch (error) {
-      console.error('Failed to load directory:', error);
-      setStatus('Error loading files');
-    }
-  };
-
-  const handleCreate = async () => {
-    if (create === '+ New Note') {
-      setStatus('Creating New Note...');
-      try {
-        const timestamp = Date.now();
-        const fileName = `note_${timestamp}.txt`;
-        const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
-
-        await writeFile(filePath, '# New Note\n\nStart writing here...');
-        await loadDirectory(currentPath);
-        setStatus('Note created!');
-        setTimeout(() => setStatus(''), 2000);
-      } catch (error) {
-        console.error('Failed to create note:', error);
-        setStatus('Error creating note');
+  const handleCreate = useCallback(
+    async (option: string) => {
+      if (option === '+ New Note') {
+        await createNote();
+      } else if (option === '+ New Folder') {
+        await createNewFolder();
       }
-    } else if (create === '+ New Folder') {
-      setStatus('Creating New Folder...');
-      try {
-        const timestamp = Date.now();
-        const folderName = `folder_${timestamp}`;
-        const folderPath = currentPath
-          ? `${currentPath}/${folderName}`
-          : folderName;
+    },
+    [createNote, createNewFolder]
+  );
 
-        await createFolder(folderPath);
-        await loadDirectory(currentPath);
-        setStatus('Folder created!');
-        setTimeout(() => setStatus(''), 2000);
-      } catch (error) {
-        console.error('Failed to create folder:', error);
-        setStatus('Error creating folder');
+  const handleItemPress = useCallback(
+    (item: FileSystemItem) => {
+      if (item.isDirectory) {
+        setCurrentPath(item.path);
+        selectItem(null);
+      } else {
+        selectItem(item.path);
+        setSelected?.(item.path, item.isDirectory);
       }
+    },
+    [setCurrentPath, selectItem, setSelected]
+  );
+
+  const handleOptionsPress = useCallback((item: FileSystemItem) => {
+    setActiveItem(item);
+    const ref = itemRefs.current[item.path];
+
+    if (ref) {
+      ref.measure((x, y, width, height, pageX, pageY) => {
+        setDropdownAnchor({
+          x: pageX + width - 40,
+          y: pageY,
+          width: 40,
+          height,
+        });
+        setDropdownVisible(true);
+      });
     }
-    setCreate('');
-  };
+  }, []);
 
-  const handleItemPress = (item: FileSystemItem) => {
-    if (item.isDirectory) {
-      setCurrentPath(item.path);
-      setSelectedItemPath(null);
-    } else {
-      setSelectedItemPath(item.path);
-      setSelected?.(item.path, item.isDirectory);
-    }
-  };
+  const handleDropdownSelect = useCallback(
+    async (option: string) => {
+      if (!activeItem) return;
 
-  const handleBackPress = () => {
-    if (currentPath) {
-      const parentPath = currentPath.split('/').slice(0, -1).join('/');
-      setCurrentPath(parentPath);
-      setSelectedItemPath(null);
-    }
-  };
+      // TODO: Implement file operations
+      console.log(`${option}: ${activeItem.name}`);
+      setDropdownVisible(false);
+    },
+    [activeItem]
+  );
 
-  const handleOptionsPress = (item: FileSystemItem) => {
-    console.log('Options for:', item.name);
-    // TODO: Show action sheet with Rename, Delete, Move options
-  };
+  const handleDropdownClose = useCallback(() => {
+    setDropdownVisible(false);
+    setActiveItem(null);
+  }, []);
 
-  const renderBreadcrumb = () => {
-    const parts = currentPath ? currentPath.split('/') : [];
-
-    return (
-      <View style={localStyles.breadcrumb}>
-        <TouchableOpacity onPress={() => setCurrentPath('')}>
-          <Text style={[localStyles.breadcrumbText, { color: theme.primary }]}>
-            Home
-          </Text>
-        </TouchableOpacity>
-
-        {parts.map((part, index) => (
-          <View key={index} style={localStyles.breadcrumbItem}>
-            <Text
-              style={[
-                localStyles.breadcrumbSeparator,
-                { color: theme.textSecondary },
-              ]}
-            >
-              {' / '}
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                const newPath = parts.slice(0, index + 1).join('/');
-                setCurrentPath(newPath);
-              }}
-            >
-              <Text
-                style={[localStyles.breadcrumbText, { color: theme.primary }]}
-              >
-                {part}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+  const renderItem = useCallback(
+    ({ item }: { item: FileSystemItem }) => (
+      <View
+        ref={(ref) => {
+          itemRefs.current[item.path] = ref;
+        }}
+        style={localStyles.itemWrapper}
+      >
+        <View style={localStyles.fileItemContainer}>
+          <FileItem
+            name={item.name}
+            onPress={() => handleItemPress(item)}
+            onOptionsPress={() => handleOptionsPress(item)}
+            isSelected={selectedItemPath === item.path}
+            type={item.isDirectory}
+          />
+        </View>
       </View>
-    );
-  };
+    ),
+    [handleItemPress, handleOptionsPress, selectedItemPath]
+  );
+
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: ITEM_HEIGHT,
+      offset: ITEM_HEIGHT * index,
+      index,
+    }),
+    []
+  );
+
+  const containerStyle = useMemo(
+    () => ({
+      flex: 1,
+      padding: 8,
+      borderColor: theme.text,
+      borderWidth: 1,
+      borderRadius: 5,
+    }),
+    [theme.text]
+  );
+
+  const backButtonStyle = useMemo(
+    () => [localStyles.backButton, { backgroundColor: theme.card }],
+    [theme.card]
+  );
+
+  const backButtonTextStyle = useMemo(
+    () => [localStyles.backButtonText, { color: theme.text }],
+    [theme.text]
+  );
+
+  const statusTextStyle = useMemo(
+    () => [localStyles.statusText, { color: theme.textSecondary }],
+    [theme.textSecondary]
+  );
 
   return (
-    <View
-      style={{
-        flex: 1,
-        padding: 8,
-        borderColor: theme.text,
-        borderWidth: 1,
-        borderRadius: 5,
-      }}
-    >
-      <BoxHeaderAdd title="Note List" add={setCreate} options={options} />
+    <View style={containerStyle}>
+      <BoxHeaderAdd
+        title="Note List"
+        add={handleCreate}
+        options={headerOptions}
+      />
 
-      {status && (
-        <Text style={[localStyles.statusText, { color: theme.textSecondary }]}>
-          {status}
-        </Text>
-      )}
+      {status && <Text style={statusTextStyle}>{status}</Text>}
 
-      {renderBreadcrumb()}
+      <Breadcrumb
+        currentPath={currentPath}
+        onNavigate={navigateToPath}
+        theme={theme}
+      />
 
-      {currentPath !== '' && (
-        <TouchableOpacity
-          style={[localStyles.backButton, { backgroundColor: theme.card }]}
-          onPress={handleBackPress}
-        >
+      {currentPath && (
+        <TouchableOpacity style={backButtonStyle} onPress={navigateToParent}>
           <Ionicons name="arrow-back" size={18} color={theme.text} />
-          <Text style={[localStyles.backButtonText, { color: theme.text }]}>
-            Back
-          </Text>
+          <Text style={backButtonTextStyle}>Back</Text>
         </TouchableOpacity>
       )}
 
       <FlatList
         data={items}
         keyExtractor={(item) => item.path}
-        renderItem={({ item }) => (
-          <View style={localStyles.itemWrapper}>
-            {item.isDirectory && (
-              <Ionicons
-                name="folder"
-                size={18}
-                color={theme.primary}
-                style={localStyles.folderIcon}
-              />
-            )}
-            <View style={localStyles.fileItemContainer}>
-              <FileItem
-                name={item.name}
-                onPress={() => handleItemPress(item)}
-                onOptionsPress={() => handleOptionsPress(item)}
-                isSelected={selectedItemPath === item.path}
-              />
-            </View>
-          </View>
-        )}
+        renderItem={renderItem}
+        getItemLayout={getItemLayout}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={10}
+      />
+
+      <DropdownModal
+        visible={dropdownVisible}
+        onClose={handleDropdownClose}
+        options={fileOptions}
+        onSelect={handleDropdownSelect}
+        anchorPosition={dropdownAnchor}
+        title={activeItem?.name}
       />
     </View>
   );
@@ -218,23 +222,6 @@ const localStyles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 8,
     fontStyle: 'italic',
-  },
-  breadcrumb: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  breadcrumbItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  breadcrumbText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  breadcrumbSeparator: {
-    fontSize: 13,
   },
   backButton: {
     flexDirection: 'row',
@@ -252,9 +239,6 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 2,
-  },
-  folderIcon: {
-    marginRight: 6,
   },
   fileItemContainer: {
     flex: 1,

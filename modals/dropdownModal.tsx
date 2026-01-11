@@ -1,15 +1,14 @@
-// modals/dropdownModal.tsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   Modal,
   View,
   StyleSheet,
   TouchableWithoutFeedback,
-  Dimensions,
   TouchableOpacity,
   Text,
   useColorScheme,
 } from 'react-native';
+import { calculateDropdownPosition } from '../hooks/dropDownPosition';
 
 interface DropdownModalProps {
   visible: boolean;
@@ -36,25 +35,15 @@ export default function DropdownModal({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  // Calculate dropdown position
-  const screenWidth = Dimensions.get('window').width;
-  const screenHeight = Dimensions.get('window').height;
   const dropdownWidth = 180;
   const itemHeight = 48;
-  const dropdownHeight = options.length * itemHeight + 16;
 
-  let left = anchorPosition.x;
-  let top = anchorPosition.y + anchorPosition.height + 8;
-
-  // Adjust if dropdown goes off screen on right
-  if (left + dropdownWidth > screenWidth - 16) {
-    left = screenWidth - dropdownWidth - 16;
-  }
-
-  // Adjust if dropdown goes off screen at bottom
-  if (top + dropdownHeight > screenHeight - 16) {
-    top = anchorPosition.y - dropdownHeight - 8;
-  }
+  const { top, left } = calculateDropdownPosition(anchorPosition, {
+    width: dropdownWidth,
+    itemHeight,
+    itemCount: options.length,
+    padding: 16,
+  });
 
   const handleOptionPress = (option: string) => {
     onSelect(option);
@@ -94,7 +83,6 @@ export default function DropdownModal({
                 </Text>
               </View>
             )}
-
             {options.map((option, index) => (
               <TouchableOpacity
                 key={option}
