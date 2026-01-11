@@ -19,7 +19,7 @@ export default function Selection() {
 
   const loadFiles = async () => {
     try {
-      const allItems = await listLockInItems(); // Files AND folders
+      const allItems = await listLockInItems();
       setFiles(allItems);
     } catch (error) {
       console.error('Failed to load items:', error);
@@ -29,7 +29,7 @@ export default function Selection() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LeftBox>
-        <WorkList items={files} setSelected={setSelected} />
+        <WorkList setSelected={setSelected} />
       </LeftBox>
       <RightBox>
         <Text style={{ color: 'white' }}>Found {files.length} file(s)</Text>
