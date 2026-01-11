@@ -13,7 +13,7 @@ interface BoxHeaderProps {
   handleButton?: () => void;
 }
 
-export default function BoxHeader({ label, handleButton }: BoxHeaderProps) {
+export default function BoxHeaderX({ label, handleButton }: BoxHeaderProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 

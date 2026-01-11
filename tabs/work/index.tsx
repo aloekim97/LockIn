@@ -12,9 +12,9 @@ import { styles } from './workStyles';
 import { Colors } from '../../globalcss';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import Selection from '../../components/work/selection';
 
 export default function WorkScreen() {
-  const [status, setStatus] = useState('Ready');
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
 
@@ -44,8 +44,6 @@ export default function WorkScreen() {
         }
       );
 
-      setStatus('File Saved!');
-
       const isExpoGo = Constants.appOwnership === 'expo';
       if (isExpoGo) {
         await Sharing.shareAsync(fileUri);
@@ -60,7 +58,7 @@ export default function WorkScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.status, { color: theme.text }]}>{status}</Text>
+      <Selection />
       <TouchableOpacity
         style={[styles.button, { backgroundColor: theme.button }]}
         onPress={handleFileAction}

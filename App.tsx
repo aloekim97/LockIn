@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import Constants from 'expo-constants';
 import HomeScreen from './tabs/home';
 import SettingsScreen from './tabs/settings';
 import plan from './tabs/plan';
+import WorkScreen from './tabs/work';
+import { initializeLockInFolder } from './utils/fileHelper';
 
 const Colors = {
   light: {
@@ -37,13 +36,18 @@ export default function App() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
 
+  useEffect(() => {
+    initializeLockInFolder().catch((error) => {
+      console.error('Failed to initialize LockIn folder:', error);
+    });
+  }, []);
+
   return (
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
             let iconName: any = 'home';
-
             if (route.name === 'Home') {
               iconName = focused ? 'home' : 'home-outline';
             } else if (route.name === 'Settings') {
@@ -51,7 +55,6 @@ export default function App() {
             } else if (route.name === 'Profile') {
               iconName = focused ? 'person' : 'person-outline';
             }
-
             return <Ionicons name={iconName} size={size} color={color} />;
           },
           tabBarActiveTintColor: theme.tabBarActive,
@@ -73,10 +76,10 @@ export default function App() {
           }}
         />
         <Tab.Screen 
-          name="Settings" 
-          component={SettingsScreen}
+          name="Work" 
+          component={WorkScreen}
           options={{
-            tabBarLabel: 'Settings',
+            tabBarLabel: 'Work',
           }}
         />
         <Tab.Screen 
@@ -84,6 +87,13 @@ export default function App() {
           component={plan}
           options={{
             tabBarLabel: 'Plan',
+          }}
+        />
+        <Tab.Screen 
+          name="Settings" 
+          component={SettingsScreen}
+          options={{
+            tabBarLabel: 'Settings',
           }}
         />
       </Tab.Navigator>
