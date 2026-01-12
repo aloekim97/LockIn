@@ -1,13 +1,13 @@
 import { useColorScheme, View, Text } from 'react-native';
-import LeftBox from '../../../ui/nonspecific/left-box';
-import RightBox from '../../../ui/nonspecific/right-box';
-import { styles } from '../../../tabs/home/homeStyles';
-import { Colors } from '../../../globalcss';
+import LeftBox from '../../ui/nonspecific/left-box';
+import RightBox from '../../ui/nonspecific/right-box';
+import { styles } from '../../tabs/home/homeStyles';
+import { Colors } from '../../globalcss';
 import { useEffect, useState } from 'react';
-import WorkList from '../workList';
-import { listLockInItems } from '../../../utils/fileSystem';
+import WorkList from './workList';
+import { listLockInItems } from '../../utils/fileSystem';
 
-export default function Selection() {
+export default function Work() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const [selected, setSelected] = useState('');

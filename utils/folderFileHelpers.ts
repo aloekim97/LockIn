@@ -1,14 +1,13 @@
-import * as FileSystem from 'expo-file-system';
 import {
+  getDirectoryContents,
   createFolder as createFolderBase,
   writeFile,
-  listSubfolders,
-  listFiles,
-  getDirectoryContents,
   deleteItem,
+  renameItem as renameItemBase,
   readFile,
-  renameItem,
   getItemInfo,
+  getLockInFolderUri,
+  FileSystemItem,
 } from './fileSystem';
 
 export interface File {
@@ -31,14 +30,16 @@ export interface Folder {
  */
 export const loadFolders = async (): Promise<Folder[]> => {
   try {
-    const folderNames = await listSubfolders();
+    const items = await getDirectoryContents('');
+    const folders = items.filter(item => item.isDirectory);
+    
     const foldersWithCounts: Folder[] = [];
     
-    for (const name of folderNames) {
-      const fileList = await listFiles(name);
+    for (const folder of folders) {
+      const files = await getDirectoryContents(folder.name);
       foldersWithCounts.push({
-        name,
-        fileCount: fileList.length,
+        name: folder.name,
+        fileCount: files.filter(item => !item.isDirectory).length,
       });
     }
     
@@ -57,21 +58,17 @@ export const loadFolders = async (): Promise<Folder[]> => {
 export const loadFilesFromFolder = async (folderName: string): Promise<File[]> => {
   try {
     const items = await getDirectoryContents(folderName);
-    const fileArray: File[] = [];
+    const files = items.filter(item => !item.isDirectory && item.name.endsWith('.txt'));
     
-    for (const item of items) {
-      if (!item.isDirectory && item.name.endsWith('.txt')) {
-        fileArray.push({
-          id: item.name,
-          title: item.name.replace('.txt', ''),
-          folder: folderName,
-          fileName: item.name,
-          updatedAt: new Date(item.modificationTime || Date.now()).toISOString(),
-        });
-      }
-    }
-    
-    return fileArray;
+    return files.map(file => ({
+      id: file.name,
+      title: file.name.replace('.txt', ''),
+      folder: folderName,
+      fileName: file.name,
+      updatedAt: file.modificationTime 
+        ? new Date(file.modificationTime).toISOString() 
+        : new Date().toISOString(),
+    }));
   } catch (error) {
     console.error('Failed to load files from folder:', error);
     throw error;
@@ -114,7 +111,8 @@ export const createFile = async (
       throw new Error('File name cannot be empty');
     }
 
-    const relativePath = `${folderName}/${fileName}.txt`;
+    const fullFileName = `${fileName}.txt`;
+    const relativePath = `${folderName}/${fullFileName}`;
     const fileContent = content || `# ${fileName}\n\nStart writing here...`;
     
     const fileUri = await writeFile(relativePath, fileContent, false);
@@ -153,9 +151,32 @@ export const deleteFile = async (
   try {
     const relativePath = `${folderName}/${fileName}`;
     await deleteItem(relativePath);
+    console.log('✅ File deleted:', fileName);
     return true;
   } catch (error) {
-    console.error('Failed to delete file:', error);
+    console.error('❌ Failed to delete file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a file or folder by full path
+ * @param path - Full path to the item to delete (relative to LockIn folder)
+ * @returns Success boolean
+ */
+export const deleteItemByPath = async (path: string): Promise<boolean> => {
+  try {
+    // Remove LockIn prefix if present
+    const lockInUri = getLockInFolderUri();
+    const relativePath = path.startsWith(lockInUri) 
+      ? path.replace(lockInUri, '') 
+      : path;
+    
+    await deleteItem(relativePath);
+    console.log('✅ Item deleted:', relativePath);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to delete item:', error);
     throw error;
   }
 };
@@ -216,7 +237,8 @@ export const renameFile = async (
   try {
     const oldPath = `${folderName}/${oldFileName}`;
     const newPath = `${folderName}/${newFileName}.txt`;
-    await renameItem(oldPath, newPath);
+    
+    await renameItemBase(oldPath, newPath);
     return true;
   } catch (error) {
     console.error('Failed to rename file:', error);
@@ -233,7 +255,7 @@ export const renameFile = async (
 export const getFileMetadata = async (
   folderName: string,
   fileName: string
-): Promise<FileSystem.FileInfo> => {
+): Promise<any> => {
   try {
     const relativePath = `${folderName}/${fileName}`;
     return await getItemInfo(relativePath);

@@ -8,6 +8,8 @@ import SettingsScreen from './tabs/settings';
 import plan from './tabs/plan';
 import WorkScreen from './tabs/work';
 import { initializeLockInFolder } from './utils/fileSystem';
+import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const Colors = {
   light: {
@@ -43,60 +45,62 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName: any = 'home';
-            if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Settings') {
-              iconName = focused ? 'settings' : 'settings-outline';
-            } else if (route.name === 'Profile') {
-              iconName = focused ? 'person' : 'person-outline';
-            }
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: theme.tabBarActive,
-          tabBarInactiveTintColor: theme.tabBarInactive,
-          tabBarStyle: {
-            backgroundColor: theme.tabBar,
-          },
-          headerStyle: {
-            backgroundColor: theme.tabBar,
-          },
-          headerTintColor: theme.text,
-        })}
-      >
-        <Tab.Screen 
-          name="Home" 
-          component={HomeScreen}
-          options={{
-            tabBarLabel: 'Home',
-          }}
-        />
-        <Tab.Screen 
-          name="Work" 
-          component={WorkScreen}
-          options={{
-            tabBarLabel: 'Work',
-          }}
-        />
-        <Tab.Screen 
-          name="Profile" 
-          component={plan}
-          options={{
-            tabBarLabel: 'Plan',
-          }}
-        />
-        <Tab.Screen 
-          name="Settings" 
-          component={SettingsScreen}
-          options={{
-            tabBarLabel: 'Settings',
-          }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Tab.Navigator
+          screenOptions={({ route }) => ({
+            tabBarIcon: ({ focused, color, size }) => {
+              let iconName: any = 'home';
+              if (route.name === 'Home') {
+                iconName = focused ? 'home' : 'home-outline';
+              } else if (route.name === 'Settings') {
+                iconName = focused ? 'settings' : 'settings-outline';
+              } else if (route.name === 'Profile') {
+                iconName = focused ? 'person' : 'person-outline';
+              }
+              return <Ionicons name={iconName} size={size} color={color} />;
+            },
+            tabBarActiveTintColor: theme.tabBarActive,
+            tabBarInactiveTintColor: theme.tabBarInactive,
+            tabBarStyle: {
+              backgroundColor: theme.tabBar,
+            },
+            headerStyle: {
+              backgroundColor: theme.tabBar,
+            },
+            headerTintColor: theme.text,
+          })}
+        >
+          <Tab.Screen 
+            name="Home" 
+            component={HomeScreen}
+            options={{
+              tabBarLabel: 'Home',
+            }}
+          />
+          <Tab.Screen 
+            name="Work" 
+            component={WorkScreen}
+            options={{
+              tabBarLabel: 'Work',
+            }}
+          />
+          <Tab.Screen 
+            name="Profile" 
+            component={plan}
+            options={{
+              tabBarLabel: 'Plan',
+            }}
+          />
+          <Tab.Screen 
+            name="Settings" 
+            component={SettingsScreen}
+            options={{
+              tabBarLabel: 'Settings',
+            }}
+          />
+        </Tab.Navigator>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }

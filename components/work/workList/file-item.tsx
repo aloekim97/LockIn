@@ -1,4 +1,4 @@
-// components/FileItem.tsx (Enhanced version)
+// components/FileItem.tsx (Enhanced version with swipe-to-delete)
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -8,7 +8,9 @@ import {
   StyleSheet,
   useColorScheme,
   Keyboard,
+  Animated,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../globalcss';
 
@@ -16,6 +18,7 @@ interface FileItemProps {
   name: string;
   onPress?: () => void;
   onOptionsPress?: () => void;
+  onDelete?: () => void;
   isSelected?: boolean;
   type: boolean;
   isEditing?: boolean;
@@ -27,6 +30,7 @@ export default function FileItem({
   name,
   onPress,
   onOptionsPress,
+  onDelete,
   isSelected = false,
   type,
   isEditing = false,
@@ -37,6 +41,7 @@ export default function FileItem({
   const theme = Colors[colorScheme ?? 'light'];
   const [editName, setEditName] = useState(name);
   const inputRef = useRef<TextInput>(null);
+  const swipeableRef = useRef<Swipeable>(null);
 
   useEffect(() => {
     if (isEditing) {
@@ -76,122 +81,180 @@ export default function FileItem({
     }
   };
 
-  if (isEditing) {
+  const renderRightActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+    dragX: Animated.AnimatedInterpolation<number>
+  ) => {
+    const trans = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [0, 100],
+      extrapolate: 'clamp',
+    });
+
+    const scale = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.8, 1],
+      extrapolate: 'clamp',
+    });
+
     return (
-      <View
+      <Animated.View
+        style={[
+          styles.deleteContainer,
+          {
+            transform: [{ translateX: trans }, { scale }],
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => {
+            swipeableRef.current?.close();
+            onDelete?.();
+          }}
+        >
+          <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+          <Text style={styles.deleteText}>Delete</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderContent = () => {
+    if (isEditing) {
+      return (
+        <View
+          style={[
+            styles.container,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.primary,
+            },
+          ]}
+        >
+          {type ? (
+            <Ionicons
+              name="folder"
+              size={18}
+              color={theme.textSecondary}
+              style={styles.folderIcon}
+            />
+          ) : (
+            <Ionicons
+              name="document-text"
+              size={18}
+              color={theme.textSecondary}
+              style={styles.folderIcon}
+            />
+          )}
+
+          <TextInput
+            ref={inputRef}
+            style={[
+              styles.input,
+              {
+                color: theme.text,
+                backgroundColor: theme.card,
+                borderColor: theme.textSecondary,
+              },
+            ]}
+            value={editName}
+            onChangeText={setEditName}
+            onSubmitEditing={handleSubmit}
+            onBlur={handleBlur}
+            onKeyPress={handleKeyPress}
+            autoCapitalize="none"
+            autoCorrect={false}
+            selectTextOnFocus
+            returnKeyType="done"
+            blurOnSubmit
+          />
+
+          <View style={styles.buttonsContainer}>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              style={[styles.button, { backgroundColor: theme.primary + '20' }]}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="checkmark" size={18} color={theme.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={onCancelEdit}
+              style={[
+                styles.button,
+                { backgroundColor: theme.textSecondary + '20' },
+              ]}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={18} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity
         style={[
           styles.container,
           {
             backgroundColor: theme.card,
-            borderColor: theme.primary,
+            borderColor: isSelected ? theme.primary : 'transparent',
           },
         ]}
+        onPress={onPress}
+        activeOpacity={0.7}
       >
         {type ? (
           <Ionicons
             name="folder"
             size={18}
-            color={theme.textSecondary}
+            color={theme.primary}
             style={styles.folderIcon}
           />
         ) : (
           <Ionicons
             name="document-text"
             size={18}
-            color={theme.textSecondary}
+            color={theme.primary}
             style={styles.folderIcon}
           />
         )}
+        <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+          {name}
+        </Text>
 
-        <TextInput
-          ref={inputRef}
-          style={[
-            styles.input,
-            {
-              color: theme.text,
-              backgroundColor: theme.card,
-              borderColor: theme.textSecondary,
-            },
-          ]}
-          value={editName}
-          onChangeText={setEditName}
-          onSubmitEditing={handleSubmit}
-          onBlur={handleBlur}
-          onKeyPress={handleKeyPress}
-          autoCapitalize="none"
-          autoCorrect={false}
-          selectTextOnFocus
-          returnKeyType="done"
-          blurOnSubmit
-        />
-
-        <View style={styles.buttonsContainer}>
-          <TouchableOpacity
-            onPress={handleSubmit}
-            style={[styles.button, { backgroundColor: theme.primary + '20' }]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="checkmark" size={18} color={theme.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={onCancelEdit}
-            style={[
-              styles.button,
-              { backgroundColor: theme.textSecondary + '20' },
-            ]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="close" size={18} color={theme.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+        <TouchableOpacity
+          style={styles.optionsButton}
+          onPress={onOptionsPress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={20}
+            color={theme.textSecondary}
+          />
+        </TouchableOpacity>
+      </TouchableOpacity>
     );
+  };
+
+  // Don't allow swipe when editing or if no delete handler
+  if (isEditing || !onDelete) {
+    return renderContent();
   }
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.container,
-        {
-          backgroundColor: theme.card,
-          borderColor: isSelected ? theme.primary : 'transparent',
-        },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={renderRightActions}
+      overshootRight={false}
+      friction={2}
+      rightThreshold={40}
     >
-      {type ? (
-        <Ionicons
-          name="folder"
-          size={18}
-          color={theme.primary}
-          style={styles.folderIcon}
-        />
-      ) : (
-        <Ionicons
-          name="document-text"
-          size={18}
-          color={theme.primary}
-          style={styles.folderIcon}
-        />
-      )}
-      <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
-        {name}
-      </Text>
-
-      <TouchableOpacity
-        style={styles.optionsButton}
-        onPress={onOptionsPress}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Ionicons
-          name="ellipsis-horizontal"
-          size={20}
-          color={theme.textSecondary}
-        />
-      </TouchableOpacity>
-    </TouchableOpacity>
+      {renderContent()}
+    </Swipeable>
   );
 }
 
@@ -234,5 +297,25 @@ const styles = StyleSheet.create({
     padding: 6,
     marginLeft: 8,
     borderRadius: 4,
+  },
+  deleteContainer: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 8,
+  },
+  deleteButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    height: '100%',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FF3B30',
+  },
+  deleteText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });

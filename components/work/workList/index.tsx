@@ -1,4 +1,4 @@
-// components/WorkList.tsx
+// components/WorkList.tsx - Updated with Delete functionality
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   useColorScheme,
@@ -7,6 +7,7 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../globalcss';
@@ -16,6 +17,7 @@ import Breadcrumb from './breadcrumb';
 import DropdownModal from '../../../modals/dropdownModal';
 import { FileSystemItem } from '../../../utils/fileSystem';
 import { useFileSystem } from '../../../hooks/useFileSystem';
+import { deleteItemByPath } from '../../../utils/folderFileHelpers';
 
 interface WorkListProps {
   setSelected?: (path: string, isDirectory: boolean) => void;
@@ -50,6 +52,7 @@ export default function WorkList({ setSelected }: WorkListProps) {
     navigateToParent,
     navigateToPath,
     selectItem,
+    refreshCurrentPath, // You may need to add this to your useFileSystem hook
   } = useFileSystem();
 
   const headerOptions = useMemo(() => ['+ New Folder', '+ New Note'], []);
@@ -96,13 +99,107 @@ export default function WorkList({ setSelected }: WorkListProps) {
     }
   }, []);
 
+  const handleDelete = useCallback(
+    async (item: FileSystemItem) => {
+      const itemType = item.isDirectory ? 'folder' : 'file';
+      const warningMessage = item.isDirectory
+        ? `Are you sure you want to delete "${item.name}" and all its contents? This action cannot be undone.`
+        : `Are you sure you want to delete "${item.name}"? This action cannot be undone.`;
+
+      Alert.alert(
+        `Delete ${itemType}`,
+        warningMessage,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Perform delete
+                const success = await deleteItemByPath(item.path);
+
+                if (success) {
+                  // If we deleted the currently selected item, clear selection
+                  if (selectedItemPath === item.path) {
+                    selectItem(null);
+                  }
+
+                  // Refresh the current directory
+                  if (refreshCurrentPath) {
+                    await refreshCurrentPath();
+                  } else {
+                    // Fallback: re-navigate to current path to trigger reload
+                    const tempPath = currentPath;
+                    setCurrentPath('');
+                    setTimeout(() => setCurrentPath(tempPath), 0);
+                  }
+
+                  Alert.alert('Success', `${itemType} deleted successfully`);
+                } else {
+                  Alert.alert(
+                    'Error',
+                    `${itemType} does not exist or was already deleted`
+                  );
+                }
+              } catch (error) {
+                console.error('Failed to delete item:', error);
+                Alert.alert(
+                  'Error',
+                  `Failed to delete ${itemType}. Please try again.`
+                );
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    },
+    [
+      selectedItemPath,
+      selectItem,
+      currentPath,
+      setCurrentPath,
+      refreshCurrentPath,
+    ]
+  );
+
   const handleDropdownSelect = useCallback(
     async (option: string) => {
       if (!activeItem) return;
-      console.log(`${option}: ${activeItem.name}`);
+
       setDropdownVisible(false);
+
+      switch (option) {
+        case 'Delete':
+          await handleDelete(activeItem);
+          break;
+        case 'Rename':
+          console.log(`Rename: ${activeItem.name}`);
+          // TODO: Implement rename functionality
+          Alert.alert(
+            'Coming Soon',
+            'Rename functionality will be implemented soon'
+          );
+          break;
+        case 'Move':
+          console.log(`Move: ${activeItem.name}`);
+          // TODO: Implement move functionality
+          Alert.alert(
+            'Coming Soon',
+            'Move functionality will be implemented soon'
+          );
+          break;
+        default:
+          console.log(`${option}: ${activeItem.name}`);
+      }
+
+      setActiveItem(null);
     },
-    [activeItem]
+    [activeItem, handleDelete]
   );
 
   const handleDropdownClose = useCallback(() => {
@@ -170,8 +267,9 @@ export default function WorkList({ setSelected }: WorkListProps) {
           <View style={localStyles.fileItemContainer}>
             <FileItem
               name={item.name}
-              onPress={() => !isEditing && handleItemPress(item)}
-              onOptionsPress={() => !isEditing && handleOptionsPress(item)}
+              onPress={() => handleItemPress(item)}
+              onOptionsPress={() => handleOptionsPress(item)}
+              onDelete={() => handleDelete(item)}
               isSelected={selectedItemPath === item.path}
               type={item.isDirectory}
               isEditing={isEditing}

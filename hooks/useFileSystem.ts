@@ -177,6 +177,15 @@ export function useFileSystem(initialPath = '') {
     };
   }, []);
 
+   const refreshCurrentPath = useCallback(async () => {
+    await loadDirectory(currentPath);
+  }, [currentPath, loadDirectory]);
+
+  // Load directory when currentPath changes
+  useEffect(() => {
+    loadDirectory(currentPath);
+  }, [currentPath, loadDirectory]);
+
   return {
     status,
     currentPath,
@@ -193,5 +202,6 @@ export function useFileSystem(initialPath = '') {
     selectItem,
     refreshDirectory: () => loadDirectory(currentPath),
     setStatusWithTimeout,
+    refreshCurrentPath
   };
 }
