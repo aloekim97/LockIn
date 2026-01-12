@@ -88,6 +88,13 @@ export interface FileSystemItem {
   size?: number;
   modificationTime?: number;
 }
+export interface PendingItem {
+  id: string;
+  type: 'file' | 'folder';
+  initialName: string;
+  path: string;
+  isEditing: boolean;
+}
 
 /**
  * Get all items (files and folders) in a directory

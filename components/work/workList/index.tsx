@@ -14,13 +14,8 @@ import BoxHeaderAdd from '../../../ui/nonspecific/box-header+';
 import FileItem from './file-item';
 import Breadcrumb from './breadcrumb';
 import DropdownModal from '../../../modals/dropdownModal';
-import { useFileSystem } from '../../../hooks/usefileSystem';
-import {
-  getDirectoryContents,
-  createFolder,
-  writeFile,
-  FileSystemItem,
-} from '../../../utils/fileSystem';
+import { FileSystemItem } from '../../../utils/fileSystem';
+import { useFileSystem } from '../../../hooks/useFileSystem';
 
 interface WorkListProps {
   setSelected?: (path: string, isDirectory: boolean) => void;
@@ -46,9 +41,12 @@ export default function WorkList({ setSelected }: WorkListProps) {
     currentPath,
     items,
     selectedItemPath,
+    pendingItems,
     setCurrentPath,
     createNote,
     createNewFolder,
+    savePendingItem,
+    cancelPendingItem,
     navigateToParent,
     navigateToPath,
     selectItem,
@@ -58,11 +56,11 @@ export default function WorkList({ setSelected }: WorkListProps) {
   const fileOptions = useMemo(() => ['Rename', 'Delete', 'Move'], []);
 
   const handleCreate = useCallback(
-    async (option: string) => {
+    (option: string) => {
       if (option === '+ New Note') {
-        await createNote();
+        createNote();
       } else if (option === '+ New Folder') {
-        await createNewFolder();
+        createNewFolder();
       }
     },
     [createNote, createNewFolder]
@@ -101,8 +99,6 @@ export default function WorkList({ setSelected }: WorkListProps) {
   const handleDropdownSelect = useCallback(
     async (option: string) => {
       if (!activeItem) return;
-
-      // TODO: Implement file operations
       console.log(`${option}: ${activeItem.name}`);
       setDropdownVisible(false);
     },
@@ -114,26 +110,85 @@ export default function WorkList({ setSelected }: WorkListProps) {
     setActiveItem(null);
   }, []);
 
+  // Combine regular items and pending items for FlatList
+  const allItems = useMemo(() => {
+    // Regular file system items
+    const regularItems = items.map((item) => ({
+      ...item,
+      id: item.path,
+      isPending: false,
+      pendingId: null,
+    }));
+
+    // Pending items (being created/renamed)
+    const pendingItemsList = pendingItems.map((pending) => ({
+      name: pending.initialName,
+      path: pending.path,
+      isDirectory: pending.type === 'folder',
+      id: pending.id,
+      isPending: true,
+      pendingId: pending.id,
+      pendingType: pending.type,
+    }));
+
+    // New items on top, then regular items sorted by name
+    return [...pendingItemsList, ...regularItems];
+  }, [items, pendingItems]);
+
   const renderItem = useCallback(
-    ({ item }: { item: FileSystemItem }) => (
-      <View
-        ref={(ref) => {
-          itemRefs.current[item.path] = ref;
-        }}
-        style={localStyles.itemWrapper}
-      >
-        <View style={localStyles.fileItemContainer}>
-          <FileItem
-            name={item.name}
-            onPress={() => handleItemPress(item)}
-            onOptionsPress={() => handleOptionsPress(item)}
-            isSelected={selectedItemPath === item.path}
-            type={item.isDirectory}
-          />
+    ({ item }: { item: any }) => {
+      const isPending = item.isPending;
+      const isEditing = isPending; // Pending items are always in edit mode
+
+      const handleSaveEdit = (newName: string) => {
+        if (isPending && item.pendingId) {
+          savePendingItem(item.pendingId, newName);
+        } else {
+          // Handle renaming existing items here
+          console.log('Rename existing item:', item.path, newName);
+        }
+      };
+
+      const handleCancelEdit = () => {
+        if (isPending && item.pendingId) {
+          cancelPendingItem(item.pendingId);
+        } else {
+          // Handle cancel rename for existing items
+          console.log('Cancel rename');
+        }
+      };
+
+      return (
+        <View
+          ref={(ref) => {
+            if (!isPending) {
+              itemRefs.current[item.path] = ref;
+            }
+          }}
+          style={localStyles.itemWrapper}
+        >
+          <View style={localStyles.fileItemContainer}>
+            <FileItem
+              name={item.name}
+              onPress={() => !isEditing && handleItemPress(item)}
+              onOptionsPress={() => !isEditing && handleOptionsPress(item)}
+              isSelected={selectedItemPath === item.path}
+              type={item.isDirectory}
+              isEditing={isEditing}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+            />
+          </View>
         </View>
-      </View>
-    ),
-    [handleItemPress, handleOptionsPress, selectedItemPath]
+      );
+    },
+    [
+      handleItemPress,
+      handleOptionsPress,
+      selectedItemPath,
+      savePendingItem,
+      cancelPendingItem,
+    ]
   );
 
   const getItemLayout = useCallback(
@@ -195,14 +250,23 @@ export default function WorkList({ setSelected }: WorkListProps) {
       )}
 
       <FlatList
-        data={items}
-        keyExtractor={(item) => item.path}
+        data={allItems}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
         getItemLayout={getItemLayout}
         removeClippedSubviews
         maxToRenderPerBatch={10}
         windowSize={5}
         initialNumToRender={10}
+        ListEmptyComponent={
+          pendingItems.length === 0 && items.length === 0 ? (
+            <Text
+              style={[localStyles.emptyText, { color: theme.textSecondary }]}
+            >
+              No files or folders
+            </Text>
+          ) : null
+        }
       />
 
       <DropdownModal
@@ -242,5 +306,10 @@ const localStyles = StyleSheet.create({
   },
   fileItemContainer: {
     flex: 1,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontStyle: 'italic',
   },
 });

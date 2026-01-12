@@ -5,6 +5,7 @@ import {
   createFolder,
   writeFile,
   FileSystemItem,
+  PendingItem,
 } from '../utils/fileSystem';
 
 export function useFileSystem(initialPath = '') {
@@ -12,6 +13,7 @@ export function useFileSystem(initialPath = '') {
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [selectedItemPath, setSelectedItemPath] = useState<string | null>(null);
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const setStatusWithTimeout = useCallback(
@@ -78,6 +80,77 @@ export function useFileSystem(initialPath = '') {
     }
   }, [currentPath, refreshDirectory, setStatusWithTimeout]);
 
+  const startCreatingItem = useCallback(
+    (type: 'file' | 'folder') => {
+      const id = `pending_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      const initialName =
+        type === 'file' ? 'Untitled Note.txt' : 'Untitled Folder';
+
+      const pendingItem: PendingItem = {
+        id,
+        type,
+        initialName,
+        path: currentPath,
+        isEditing: true,
+      };
+
+      setPendingItems((prev) => [...prev, pendingItem]);
+      return id;
+    },
+    [currentPath]
+  );
+
+  const savePendingItem = useCallback(
+    async (pendingId: string, newName: string) => {
+      // Find the pending item first
+      const pendingItem = pendingItems.find((item) => item.id === pendingId);
+      if (!pendingItem) return;
+
+      // Remove from pending items
+      setPendingItems((prev) => prev.filter((item) => item.id !== pendingId));
+
+      if (!newName.trim()) {
+        setStatus('Name cannot be empty');
+        return;
+      }
+
+      try {
+        if (pendingItem.type === 'file') {
+          // Ensure file extension for notes
+          const fileName = newName.endsWith('.txt')
+            ? newName
+            : `${newName}.txt`;
+          const filePath = currentPath
+            ? `${currentPath}/${fileName}`
+            : fileName;
+          await writeFile(filePath, '# New Note\n\nStart writing here...');
+        } else {
+          const folderPath = currentPath
+            ? `${currentPath}/${newName}`
+            : newName;
+          await createFolder(folderPath);
+        }
+
+        await loadDirectory(currentPath);
+        setStatusWithTimeout(
+          `${pendingItem.type === 'file' ? 'Note' : 'Folder'} created!`
+        );
+      } catch (error) {
+        console.error('Failed to save item:', error);
+        setStatus(
+          `Error creating ${pendingItem.type === 'file' ? 'note' : 'folder'}`
+        );
+      }
+    },
+    [currentPath, pendingItems, loadDirectory, setStatusWithTimeout]
+  );
+
+  const cancelPendingItem = useCallback((pendingId: string) => {
+    setPendingItems((prev) => prev.filter((item) => item.id !== pendingId));
+  }, []);
+
   const navigateToParent = useCallback(() => {
     if (currentPath) {
       const parentPath = currentPath.split('/').slice(0, -1).join('/');
@@ -109,13 +182,16 @@ export function useFileSystem(initialPath = '') {
     currentPath,
     items,
     selectedItemPath,
+    pendingItems,
     setCurrentPath,
-    createNote,
-    createNewFolder,
+    createNote: () => startCreatingItem('file'),
+    createNewFolder: () => startCreatingItem('folder'),
+    savePendingItem,
+    cancelPendingItem,
     navigateToParent,
     navigateToPath,
     selectItem,
-    refreshDirectory,
+    refreshDirectory: () => loadDirectory(currentPath),
     setStatusWithTimeout,
   };
 }
