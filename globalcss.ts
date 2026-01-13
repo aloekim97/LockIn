@@ -8,6 +8,7 @@ export const Colors = {
     primary: '#007AFF',
     textSecondary: '#666',
     textTertiary: '#999',
+    error: '#ef4444',
   },
   dark: {
     background: '#000',
@@ -18,5 +19,6 @@ export const Colors = {
     primary: '#FFD60A',
     textSecondary: '#999',
     textTertiary: '#666',
+    error: '#f87171',
   },
 };

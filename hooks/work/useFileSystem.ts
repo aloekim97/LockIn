@@ -6,7 +6,7 @@ import {
   writeFile,
   FileSystemItem,
   PendingItem,
-} from '../utils/fileSystem';
+} from '../../utils/fileSystem';
 
 export function useFileSystem(initialPath = '') {
   const [status, setStatus] = useState<string>('');
@@ -38,47 +38,16 @@ export function useFileSystem(initialPath = '') {
     }
   }, []);
 
-  const refreshDirectory = useCallback(async () => {
-    setStatus('Loading...');
-    try {
-      await loadDirectory(currentPath);
-      setStatus('');
-    } catch {
-      setStatus('Error loading files');
-    }
+  // Combined the two redundant path-watching useEffects into one
+  useEffect(() => {
+    loadDirectory(currentPath);
   }, [currentPath, loadDirectory]);
 
-  const createNote = useCallback(async () => {
-    try {
-      const timestamp = Date.now();
-      const fileName = `note_${timestamp}.txt`;
-      const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
-
-      await writeFile(filePath, '# New Note\n\nStart writing here...');
-      await refreshDirectory();
-      setStatusWithTimeout('Note created!');
-    } catch (error) {
-      console.error('Failed to create note:', error);
-      setStatus('Error creating note');
-    }
-  }, [currentPath, refreshDirectory, setStatusWithTimeout]);
-
-  const createNewFolder = useCallback(async () => {
-    try {
-      const timestamp = Date.now();
-      const folderName = `folder_${timestamp}`;
-      const folderPath = currentPath
-        ? `${currentPath}/${folderName}`
-        : folderName;
-
-      await createFolder(folderPath);
-      await refreshDirectory();
-      setStatusWithTimeout('Folder created!');
-    } catch (error) {
-      console.error('Failed to create folder:', error);
-      setStatus('Error creating folder');
-    }
-  }, [currentPath, refreshDirectory, setStatusWithTimeout]);
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const startCreatingItem = useCallback(
     (type: 'file' | 'folder') => {
@@ -104,11 +73,9 @@ export function useFileSystem(initialPath = '') {
 
   const savePendingItem = useCallback(
     async (pendingId: string, newName: string) => {
-      // Find the pending item first
       const pendingItem = pendingItems.find((item) => item.id === pendingId);
       if (!pendingItem) return;
 
-      // Remove from pending items
       setPendingItems((prev) => prev.filter((item) => item.id !== pendingId));
 
       if (!newName.trim()) {
@@ -118,14 +85,13 @@ export function useFileSystem(initialPath = '') {
 
       try {
         if (pendingItem.type === 'file') {
-          // Ensure file extension for notes
           const fileName = newName.endsWith('.txt')
             ? newName
             : `${newName}.txt`;
           const filePath = currentPath
             ? `${currentPath}/${fileName}`
             : fileName;
-          await writeFile(filePath, '# New Note\n\nStart writing here...');
+          await writeFile(filePath, '');
         } else {
           const folderPath = currentPath
             ? `${currentPath}/${newName}`
@@ -159,33 +125,6 @@ export function useFileSystem(initialPath = '') {
     }
   }, [currentPath]);
 
-  const navigateToPath = useCallback((path: string) => {
-    setCurrentPath(path);
-  }, []);
-
-  const selectItem = useCallback((path: string | null) => {
-    setSelectedItemPath(path);
-  }, []);
-
-  useEffect(() => {
-    refreshDirectory();
-  }, [currentPath]);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-   const refreshCurrentPath = useCallback(async () => {
-    await loadDirectory(currentPath);
-  }, [currentPath, loadDirectory]);
-
-  // Load directory when currentPath changes
-  useEffect(() => {
-    loadDirectory(currentPath);
-  }, [currentPath, loadDirectory]);
-
   return {
     status,
     currentPath,
@@ -198,10 +137,10 @@ export function useFileSystem(initialPath = '') {
     savePendingItem,
     cancelPendingItem,
     navigateToParent,
-    navigateToPath,
-    selectItem,
+    navigateToPath: setCurrentPath,
+    selectItem: setSelectedItemPath,
     refreshDirectory: () => loadDirectory(currentPath),
     setStatusWithTimeout,
-    refreshCurrentPath
+    refreshCurrentPath: () => loadDirectory(currentPath),
   };
 }

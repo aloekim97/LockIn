@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../globalcss';
-import { readFile } from '../../../utils/fileSystem';
+import { Colors } from '../../../../globalcss';
+import { readFile } from '../../../../utils/fileSystem';
 
 interface FilePreviewProps {
   filePath: string;
@@ -19,17 +19,22 @@ interface FilePreviewProps {
   onEdit: () => void;
 }
 
-export default function FilePreview({ filePath, fileName, onEdit }: FilePreviewProps) {
+export default function FilePreview({
+  filePath,
+  fileName,
+  onEdit,
+}: FilePreviewProps) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+  const errorColor = '#ef4444';
+
   useEffect(() => {
     loadFile();
   }, [filePath]);
-  
+
   const loadFile = async () => {
     try {
       setLoading(true);
@@ -44,7 +49,7 @@ export default function FilePreview({ filePath, fileName, onEdit }: FilePreviewP
       setLoading(false);
     }
   };
-  
+
   const getPreviewContent = () => {
     // Show first 500 characters as preview
     if (content.length > 500) {
@@ -52,12 +57,20 @@ export default function FilePreview({ filePath, fileName, onEdit }: FilePreviewP
     }
     return content;
   };
-  
+
   return (
     <View style={[styles.container, { backgroundColor: theme.card }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.textSecondary + '30' }]}>
-        <Text style={[styles.fileName, { color: theme.text }]} numberOfLines={1}>
+      <View
+        style={[
+          styles.header,
+          { borderBottomColor: theme.textSecondary + '30' },
+        ]}
+      >
+        <Text
+          style={[styles.fileName, { color: theme.text }]}
+          numberOfLines={1}
+        >
           {fileName}
         </Text>
         <TouchableOpacity
@@ -68,7 +81,7 @@ export default function FilePreview({ filePath, fileName, onEdit }: FilePreviewP
           <Text style={styles.editButtonText}>Edit</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Content */}
       <ScrollView style={styles.content}>
         {loading ? (
@@ -88,15 +101,15 @@ export default function FilePreview({ filePath, fileName, onEdit }: FilePreviewP
           </Text>
         ) : (
           <View style={styles.centered}>
-            <Text style={{ color: theme.textSecondary }}>
-              File is empty
-            </Text>
+            <Text style={{ color: theme.textSecondary }}>File is empty</Text>
           </View>
         )}
       </ScrollView>
-      
+
       {/* Footer Stats */}
-      <View style={[styles.footer, { borderTopColor: theme.textSecondary + '30' }]}>
+      <View
+        style={[styles.footer, { borderTopColor: theme.textSecondary + '30' }]}
+      >
         <Text style={[styles.stats, { color: theme.textSecondary }]}>
           {content.length} characters • {filePath}
         </Text>

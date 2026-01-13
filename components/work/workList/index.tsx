@@ -1,4 +1,4 @@
-// components/WorkList.tsx - Updated with Delete functionality
+// components/WorkList.tsx
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   useColorScheme,
@@ -16,11 +16,11 @@ import FileItem from './file-item';
 import Breadcrumb from './breadcrumb';
 import DropdownModal from '../../../modals/dropdownModal';
 import { FileSystemItem } from '../../../utils/fileSystem';
-import { useFileSystem } from '../../../hooks/useFileSystem';
+import { useFileSystem } from '../../../hooks/work/useFileSystem';
 import { deleteItemByPath } from '../../../utils/folderFileHelpers';
 
 interface WorkListProps {
-  setSelected?: (path: string, isDirectory: boolean) => void;
+  setSelected: (path: string, isDirectory: boolean) => void;
 }
 
 const ITEM_HEIGHT = 50;
@@ -52,7 +52,7 @@ export default function WorkList({ setSelected }: WorkListProps) {
     navigateToParent,
     navigateToPath,
     selectItem,
-    refreshCurrentPath, // You may need to add this to your useFileSystem hook
+    refreshCurrentPath,
   } = useFileSystem();
 
   const headerOptions = useMemo(() => ['+ New Folder', '+ New Note'], []);
@@ -74,9 +74,10 @@ export default function WorkList({ setSelected }: WorkListProps) {
       if (item.isDirectory) {
         setCurrentPath(item.path);
         selectItem(null);
+        setSelected(item.path, true);
       } else {
         selectItem(item.path);
-        setSelected?.(item.path, item.isDirectory);
+        setSelected(item.path, false);
       }
     },
     [setCurrentPath, selectItem, setSelected]
@@ -85,7 +86,6 @@ export default function WorkList({ setSelected }: WorkListProps) {
   const handleOptionsPress = useCallback((item: FileSystemItem) => {
     setActiveItem(item);
     const ref = itemRefs.current[item.path];
-
     if (ref) {
       ref.measure((x, y, width, height, pageX, pageY) => {
         setDropdownAnchor({
@@ -102,187 +102,96 @@ export default function WorkList({ setSelected }: WorkListProps) {
   const handleDelete = useCallback(
     async (item: FileSystemItem) => {
       const itemType = item.isDirectory ? 'folder' : 'file';
-      const warningMessage = item.isDirectory
-        ? `Are you sure you want to delete "${item.name}" and all its contents? This action cannot be undone.`
-        : `Are you sure you want to delete "${item.name}"? This action cannot be undone.`;
-
       Alert.alert(
         `Delete ${itemType}`,
-        warningMessage,
+        `Are you sure you want to delete "${item.name}"? This action cannot be undone.`,
         [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
+          { text: 'Cancel', style: 'cancel' },
           {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
               try {
-                // Perform delete
                 const success = await deleteItemByPath(item.path);
-
                 if (success) {
-                  // If we deleted the currently selected item, clear selection
-                  if (selectedItemPath === item.path) {
-                    selectItem(null);
-                  }
-
-                  // Refresh the current directory
-                  if (refreshCurrentPath) {
-                    await refreshCurrentPath();
-                  } else {
-                    // Fallback: re-navigate to current path to trigger reload
-                    const tempPath = currentPath;
-                    setCurrentPath('');
-                    setTimeout(() => setCurrentPath(tempPath), 0);
-                  }
-
+                  if (selectedItemPath === item.path) selectItem(null);
+                  await refreshCurrentPath();
                   Alert.alert('Success', `${itemType} deleted successfully`);
-                } else {
-                  Alert.alert(
-                    'Error',
-                    `${itemType} does not exist or was already deleted`
-                  );
                 }
               } catch (error) {
                 console.error('Failed to delete item:', error);
-                Alert.alert(
-                  'Error',
-                  `Failed to delete ${itemType}. Please try again.`
-                );
               }
             },
           },
-        ],
-        { cancelable: true }
+        ]
       );
     },
-    [
-      selectedItemPath,
-      selectItem,
-      currentPath,
-      setCurrentPath,
-      refreshCurrentPath,
-    ]
+    [selectedItemPath, selectItem, refreshCurrentPath]
   );
 
   const handleDropdownSelect = useCallback(
     async (option: string) => {
       if (!activeItem) return;
-
       setDropdownVisible(false);
-
-      switch (option) {
-        case 'Delete':
-          await handleDelete(activeItem);
-          break;
-        case 'Rename':
-          console.log(`Rename: ${activeItem.name}`);
-          // TODO: Implement rename functionality
-          Alert.alert(
-            'Coming Soon',
-            'Rename functionality will be implemented soon'
-          );
-          break;
-        case 'Move':
-          console.log(`Move: ${activeItem.name}`);
-          // TODO: Implement move functionality
-          Alert.alert(
-            'Coming Soon',
-            'Move functionality will be implemented soon'
-          );
-          break;
-        default:
-          console.log(`${option}: ${activeItem.name}`);
+      if (option === 'Delete') {
+        await handleDelete(activeItem);
+      } else {
+        Alert.alert('Coming Soon', `${option} is not yet implemented`);
       }
-
       setActiveItem(null);
     },
     [activeItem, handleDelete]
   );
 
-  const handleDropdownClose = useCallback(() => {
-    setDropdownVisible(false);
-    setActiveItem(null);
-  }, []);
-
-  // Combine regular items and pending items for FlatList
   const allItems = useMemo(() => {
-    // Regular file system items
-    const regularItems = items.map((item) => ({
+    const pending = pendingItems.map((p) => ({
+      name: p.initialName,
+      path: p.path,
+      isDirectory: p.type === 'folder',
+      id: p.id,
+      isPending: true,
+      pendingId: p.id,
+    }));
+    const regular = items.map((item) => ({
       ...item,
       id: item.path,
       isPending: false,
       pendingId: null,
     }));
-
-    // Pending items (being created/renamed)
-    const pendingItemsList = pendingItems.map((pending) => ({
-      name: pending.initialName,
-      path: pending.path,
-      isDirectory: pending.type === 'folder',
-      id: pending.id,
-      isPending: true,
-      pendingId: pending.id,
-      pendingType: pending.type,
-    }));
-
-    // New items on top, then regular items sorted by name
-    return [...pendingItemsList, ...regularItems];
+    return [...pending, ...regular];
   }, [items, pendingItems]);
 
   const renderItem = useCallback(
-    ({ item }: { item: any }) => {
-      const isPending = item.isPending;
-      const isEditing = isPending; // Pending items are always in edit mode
-
-      const handleSaveEdit = (newName: string) => {
-        if (isPending && item.pendingId) {
-          savePendingItem(item.pendingId, newName);
-        } else {
-          // Handle renaming existing items here
-          console.log('Rename existing item:', item.path, newName);
-        }
-      };
-
-      const handleCancelEdit = () => {
-        if (isPending && item.pendingId) {
-          cancelPendingItem(item.pendingId);
-        } else {
-          // Handle cancel rename for existing items
-          console.log('Cancel rename');
-        }
-      };
-
-      return (
-        <View
-          ref={(ref) => {
-            if (!isPending) {
-              itemRefs.current[item.path] = ref;
+    ({ item }: { item: any }) => (
+      <View
+        ref={(ref) => {
+          if (!item.isPending) itemRefs.current[item.path] = ref;
+        }}
+        style={localStyles.itemWrapper}
+      >
+        <View style={localStyles.fileItemContainer}>
+          <FileItem
+            name={item.name}
+            onPress={() => handleItemPress(item)}
+            onOptionsPress={() => handleOptionsPress(item)}
+            onDelete={() => handleDelete(item)}
+            isSelected={selectedItemPath === item.path}
+            type={item.isDirectory}
+            isEditing={item.isPending}
+            onSaveEdit={(name: string) =>
+              item.isPending && savePendingItem(item.pendingId, name)
             }
-          }}
-          style={localStyles.itemWrapper}
-        >
-          <View style={localStyles.fileItemContainer}>
-            <FileItem
-              name={item.name}
-              onPress={() => handleItemPress(item)}
-              onOptionsPress={() => handleOptionsPress(item)}
-              onDelete={() => handleDelete(item)}
-              isSelected={selectedItemPath === item.path}
-              type={item.isDirectory}
-              isEditing={isEditing}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={handleCancelEdit}
-            />
-          </View>
+            onCancelEdit={() =>
+              item.isPending && cancelPendingItem(item.pendingId)
+            }
+          />
         </View>
-      );
-    },
+      </View>
+    ),
     [
       handleItemPress,
       handleOptionsPress,
+      handleDelete,
       selectedItemPath,
       savePendingItem,
       cancelPendingItem,
@@ -313,12 +222,10 @@ export default function WorkList({ setSelected }: WorkListProps) {
     () => [localStyles.backButton, { backgroundColor: theme.card }],
     [theme.card]
   );
-
   const backButtonTextStyle = useMemo(
     () => [localStyles.backButtonText, { color: theme.text }],
     [theme.text]
   );
-
   const statusTextStyle = useMemo(
     () => [localStyles.statusText, { color: theme.textSecondary }],
     [theme.textSecondary]
@@ -331,22 +238,18 @@ export default function WorkList({ setSelected }: WorkListProps) {
         add={handleCreate}
         options={headerOptions}
       />
-
       {status && <Text style={statusTextStyle}>{status}</Text>}
-
       <Breadcrumb
         currentPath={currentPath}
         onNavigate={navigateToPath}
         theme={theme}
       />
-
       {currentPath && (
         <TouchableOpacity style={backButtonStyle} onPress={navigateToParent}>
           <Ionicons name="arrow-back" size={18} color={theme.text} />
           <Text style={backButtonTextStyle}>Back</Text>
         </TouchableOpacity>
       )}
-
       <FlatList
         data={allItems}
         keyExtractor={(item) => item.id}
@@ -357,7 +260,7 @@ export default function WorkList({ setSelected }: WorkListProps) {
         windowSize={5}
         initialNumToRender={10}
         ListEmptyComponent={
-          pendingItems.length === 0 && items.length === 0 ? (
+          allItems.length === 0 ? (
             <Text
               style={[localStyles.emptyText, { color: theme.textSecondary }]}
             >
@@ -366,10 +269,9 @@ export default function WorkList({ setSelected }: WorkListProps) {
           ) : null
         }
       />
-
       <DropdownModal
         visible={dropdownVisible}
-        onClose={handleDropdownClose}
+        onClose={() => setDropdownVisible(false)}
         options={fileOptions}
         onSelect={handleDropdownSelect}
         anchorPosition={dropdownAnchor}
@@ -380,11 +282,7 @@ export default function WorkList({ setSelected }: WorkListProps) {
 }
 
 const localStyles = StyleSheet.create({
-  statusText: {
-    fontSize: 12,
-    marginBottom: 8,
-    fontStyle: 'italic',
-  },
+  statusText: { fontSize: 12, marginBottom: 8, fontStyle: 'italic' },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -392,22 +290,8 @@ const localStyles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 8,
   },
-  backButtonText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  itemWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  fileItemContainer: {
-    flex: 1,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontStyle: 'italic',
-  },
+  backButtonText: { marginLeft: 6, fontSize: 14, fontWeight: '500' },
+  itemWrapper: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  fileItemContainer: { flex: 1 },
+  emptyText: { textAlign: 'center', marginTop: 20, fontStyle: 'italic' },
 });
