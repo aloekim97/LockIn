@@ -56,6 +56,7 @@ export function useFileEditor({
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isReading, setIsReading] = useState(false);
 
   // Undo/Redo state
   const [history, setHistory] = useState<HistoryEntry[]>([]);

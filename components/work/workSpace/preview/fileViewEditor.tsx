@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../../globalcss';
 import { useFileEditor } from '../../../../hooks/work/useFileEditor';
-import FullscreenEditor from '../editor/fullScreenEditor';
+import FullscreenEditor from '../fullscreen/fullScreenEditor';
 import PrewviewHeader from './previewHeader';
 
 interface FileViewerEditorProps {

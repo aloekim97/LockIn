@@ -6,6 +6,7 @@ import { Colors } from '../../globalcss';
 import { useState } from 'react';
 import WorkList from './workList';
 import FileViewerEditor from './workSpace/preview/fileViewEditor';
+import FilePreview from './workSpace/preview/filePreview';
 
 export default function Work() {
   const colorScheme = useColorScheme();
@@ -33,7 +34,7 @@ export default function Work() {
       </LeftBox>
       <RightBox>
         {selectedFile ? (
-          <FileViewerEditor
+          <FilePreview
             key={selectedFile.path}
             filePath={selectedFile.path}
             fileName={selectedFile.name}
