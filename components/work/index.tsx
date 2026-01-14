@@ -20,6 +20,8 @@ function FilePreviewWrapper({ filePath, fileName }: FilePreviewWrapperProps) {
   const theme = Colors[colorScheme ?? 'light'];
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
 
+  console.log('📦 FilePreviewWrapper rendering:', { filePath, fileName });
+
   const {
     content,
     hasChanges,
@@ -38,6 +40,13 @@ function FilePreviewWrapper({ filePath, fileName }: FilePreviewWrapperProps) {
     handleDiscard,
     loadFile,
   } = useFileEditor({ filePath });
+
+  console.log('📊 useFileEditor state:', {
+    loading,
+    error,
+    contentLength: content?.length || 0,
+  });
+
 
   const handleOpenFullscreen = () => {
     setIsFullscreenOpen(true);
@@ -149,6 +158,8 @@ export default function Work() {
 const localStyles = StyleSheet.create({
   container: {
     flex: 1,
+    flexDirection: 'row',
+    gap: 32,
   },
   emptyState: {
     flex: 1,

@@ -2,9 +2,11 @@ import { Dimensions, View } from 'react-native';
 
 export default function RightBox({ children }: { children?: React.ReactNode }) {
   const { width } = Dimensions.get('window');
+
   return (
     <View
       style={{
+        flex: 1,
         borderColor: 'white',
         borderWidth: 1,
         padding: 10,

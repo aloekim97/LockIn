@@ -1,39 +1,39 @@
 // components/FloatingCanvasWidget.tsx
-import { useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
-  PanResponder,
   TouchableOpacity,
   Text,
   Animated,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  useWidgetState,
+  useWidgetTransform,
+  useDrawing,
+  useMovePanResponder,
+  useDrawPanResponder,
+} from '../../../../hooks/canvas/widgetHooks';
 
-interface FloatingCanvasWidgetProps {
+interface CanvasWidgetProps {
   theme: any;
   initialX?: number;
   initialY?: number;
   initialWidth?: number;
   initialHeight?: number;
   onClose: () => void;
-  onPositionChange?: (x: number, y: number, width: number, height: number) => void;
+  onPositionChange?: (
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 }
 
-interface PathData {
-  id: string;
-  path: string;
-  color: string;
-  width: number;
-}
-
-interface TouchPoint {
-  x: number;
-  y: number;
-}
-
-export default function FloatingCanvasWidget({
+export default function CanvasWidget({
   theme,
   initialX = 50,
   initialY = 100,
@@ -41,118 +41,51 @@ export default function FloatingCanvasWidget({
   initialHeight = 400,
   onClose,
   onPositionChange,
-}: FloatingCanvasWidgetProps) {
-  // Position and size state
-  const [position] = useState(new Animated.ValueXY({ x: initialX, y: initialY }));
-  const [size, setSize] = useState({ width: initialWidth, height: initialHeight });
-  const [isMinimized, setIsMinimized] = useState(false);
-
-  // Drawing state
-  const [paths, setPaths] = useState<PathData[]>([]);
-  const [currentPath, setCurrentPath] = useState<string>('');
-  const [touchPoints, setTouchPoints] = useState<TouchPoint[]>([]);
-  const currentPathId = useRef<string>('');
-
-  // Interaction mode state
-  const [mode, setMode] = useState<'draw' | 'move'>('draw');
-
+  onInteractionStart,
+  onInteractionEnd,
+}: CanvasWidgetProps) {
   const drawColor = theme.primary || '#007AFF';
   const strokeWidth = 3;
 
-  // Pan responder for moving the widget
-  const movePanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => mode === 'move',
-      onMoveShouldSetPanResponder: () => mode === 'move',
-      onPanResponderGrant: () => {
-        position.setOffset({
-          x: (position.x as any)._value,
-          y: (position.y as any)._value,
-        });
-        position.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: position.x, dy: position.y }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: () => {
-        position.flattenOffset();
-        if (onPositionChange) {
-          const currentX = (position.x as any)._value;
-          const currentY = (position.y as any)._value;
-          onPositionChange(currentX, currentY, size.width, size.height);
-        }
-      },
-    })
-  ).current;
+  // Use custom hooks
+  const { mode, isMinimized, toggleMode, toggleMinimize } = useWidgetState();
 
-  // Pan responder for drawing
-  const drawPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => mode === 'draw',
-      onMoveShouldSetPanResponder: () => mode === 'draw',
-      onPanResponderGrant: (evt) => {
-        const { locationX, locationY } = evt.nativeEvent;
-        currentPathId.current = `path_${Date.now()}`;
-        setCurrentPath(`M ${locationX} ${locationY}`);
-        setTouchPoints((prev) => [...prev, { x: locationX, y: locationY }]);
-      },
-      onPanResponderMove: (evt) => {
-        const { locationX, locationY } = evt.nativeEvent;
-        setCurrentPath((prev) => `${prev} L ${locationX} ${locationY}`);
-        if (Math.random() > 0.8) {
-          setTouchPoints((prev) => [...prev.slice(-500), { x: locationX, y: locationY }]);
-        }
-      },
-      onPanResponderRelease: () => {
-        if (currentPath) {
-          setPaths((prev) => [
-            ...prev,
-            {
-              id: currentPathId.current,
-              path: currentPath,
-              color: drawColor,
-              width: strokeWidth,
-            },
-          ]);
-          setCurrentPath('');
-        }
-      },
-    })
-  ).current;
+  const { position, size, handleResize, notifyPositionChange } =
+    useWidgetTransform(
+      initialX,
+      initialY,
+      initialWidth,
+      initialHeight,
+      onPositionChange
+    );
 
-  // Resize handler
-  const handleResize = (direction: 'width' | 'height', delta: number) => {
-    setSize((prev) => {
-      const newSize = {
-        width: direction === 'width' ? Math.max(200, prev.width + delta) : prev.width,
-        height: direction === 'height' ? Math.max(200, prev.height + delta) : prev.height,
-      };
-      if (onPositionChange) {
-        const currentX = (position.x as any)._value;
-        const currentY = (position.y as any)._value;
-        onPositionChange(currentX, currentY, newSize.width, newSize.height);
-      }
-      return newSize;
-    });
-  };
+  const {
+    paths,
+    currentPath,
+    touchPoints,
+    startDrawing,
+    continueDrawing,
+    endDrawing,
+    handleClear,
+    handleUndo,
+  } = useDrawing(drawColor, strokeWidth);
 
-  const handleClear = () => {
-    setPaths([]);
-    setTouchPoints([]);
-  };
+  const movePanResponder = useMovePanResponder(
+    mode,
+    position,
+    onInteractionStart,
+    onInteractionEnd,
+    notifyPositionChange
+  );
 
-  const handleUndo = () => {
-    setPaths((prev) => prev.slice(0, -1));
-  };
-
-  const toggleMode = () => {
-    setMode((prev) => (prev === 'draw' ? 'move' : 'draw'));
-  };
-
-  const toggleMinimize = () => {
-    setIsMinimized((prev) => !prev);
-  };
+  const drawPanResponder = useDrawPanResponder(
+    mode,
+    startDrawing,
+    continueDrawing,
+    endDrawing,
+    onInteractionStart,
+    onInteractionEnd
+  );
 
   if (isMinimized) {
     return (
@@ -167,9 +100,14 @@ export default function FloatingCanvasWidget({
         ]}
         {...movePanResponder.panHandlers}
       >
-        <TouchableOpacity onPress={toggleMinimize} style={styles.minimizedContent}>
+        <TouchableOpacity
+          onPress={toggleMinimize}
+          style={styles.minimizedContent}
+        >
           <Ionicons name="brush" size={20} color={theme.primary} />
-          <Text style={[styles.minimizedText, { color: theme.text }]}>Canvas</Text>
+          <Text style={[styles.minimizedText, { color: theme.text }]}>
+            Canvas
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onClose} style={styles.minimizedClose}>
           <Ionicons name="close" size={16} color={theme.text} />
@@ -193,7 +131,10 @@ export default function FloatingCanvasWidget({
     >
       {/* Header */}
       <View
-        style={[styles.header, { borderBottomColor: theme.textSecondary + '30' }]}
+        style={[
+          styles.header,
+          { borderBottomColor: theme.textSecondary + '30' },
+        ]}
         {...(mode === 'move' ? movePanResponder.panHandlers : {})}
       >
         <View style={styles.headerLeft}>
@@ -204,14 +145,18 @@ export default function FloatingCanvasWidget({
               styles.modeBadge,
               {
                 backgroundColor:
-                  mode === 'draw' ? theme.primary + '20' : theme.textSecondary + '20',
+                  mode === 'draw'
+                    ? theme.primary + '20'
+                    : theme.textSecondary + '20',
               },
             ]}
           >
             <Text
               style={[
                 styles.modeText,
-                { color: mode === 'draw' ? theme.primary : theme.textSecondary },
+                {
+                  color: mode === 'draw' ? theme.primary : theme.textSecondary,
+                },
               ]}
             >
               {mode === 'draw' ? 'Draw' : 'Move'}
@@ -297,8 +242,14 @@ export default function FloatingCanvasWidget({
         {/* Instructions */}
         {paths.length === 0 && (
           <View style={styles.instructions}>
-            <Ionicons name={mode === 'draw' ? 'brush' : 'move'} size={32} color={theme.textSecondary} />
-            <Text style={[styles.instructionText, { color: theme.textSecondary }]}>
+            <Ionicons
+              name={mode === 'draw' ? 'brush' : 'move'}
+              size={32}
+              color={theme.textSecondary}
+            />
+            <Text
+              style={[styles.instructionText, { color: theme.textSecondary }]}
+            >
               {mode === 'draw' ? 'Draw here' : 'Drag to move'}
             </Text>
           </View>
@@ -309,13 +260,21 @@ export default function FloatingCanvasWidget({
       <View style={styles.resizeHandles}>
         <TouchableOpacity
           onPressIn={() => handleResize('width', 50)}
-          style={[styles.resizeHandle, styles.resizeRight, { backgroundColor: theme.primary }]}
+          style={[
+            styles.resizeHandle,
+            styles.resizeRight,
+            { backgroundColor: theme.primary },
+          ]}
         >
           <Ionicons name="resize" size={12} color="white" />
         </TouchableOpacity>
         <TouchableOpacity
           onPressIn={() => handleResize('height', 50)}
-          style={[styles.resizeHandle, styles.resizeBottom, { backgroundColor: theme.primary }]}
+          style={[
+            styles.resizeHandle,
+            styles.resizeBottom,
+            { backgroundColor: theme.primary },
+          ]}
         >
           <Ionicons name="resize" size={12} color="white" />
         </TouchableOpacity>

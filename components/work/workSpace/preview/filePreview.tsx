@@ -1,4 +1,3 @@
-// components/FilePreview.tsx
 import React from 'react';
 import {
   View,
@@ -54,6 +53,15 @@ export default function FilePreview({
   onRetry = () => {},
 }: FilePreviewProps) {
   const errorColor = '#ef4444';
+
+  // Debug logging
+  console.log('🖼️ FilePreview rendering:', {
+    fileName,
+    loading,
+    error,
+    contentLength: content?.length || 0,
+    hasContent: !!content,
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: theme.card }]}>
@@ -226,8 +234,7 @@ export default function FilePreview({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
@@ -236,6 +243,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    backgroundColor: 'transparent',
   },
   headerLeft: {
     flex: 1,
