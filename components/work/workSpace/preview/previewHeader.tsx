@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface MultiIconHeaderProps {
+interface PreviewHeaderProps {
   fileName: string;
   theme: any;
   isEditing: boolean;
@@ -43,7 +43,7 @@ export default function PreviewHeader({
   onDiscard,
   onUndo,
   onRedo,
-}: MultiIconHeaderProps) {
+}: PreviewHeaderProps) {
   return (
     <View
       style={[

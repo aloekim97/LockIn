@@ -3,20 +3,18 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Modal,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Keyboard,
   Dimensions,
   PanResponder,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState, useEffect } from 'react';
 import DrawingCanvas from './drawingCanvas';
 import FullscreenHeader from './fullscreenHeader';
+import FloatingCanvasWidget from './canvasWidget';
 
 interface FullscreenEditorProps {
   visible: boolean;
@@ -38,6 +36,14 @@ interface FullscreenEditorProps {
 }
 
 type EditorMode = 'text' | 'draw';
+
+interface CanvasWidget {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export default function FullscreenEditor({
   visible,
@@ -61,16 +67,16 @@ export default function FullscreenEditor({
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [mode, setMode] = useState<EditorMode>('text');
   const textInputRef = useRef<TextInput>(null);
-  const [keyboardAllowed, setKeyboardAllowed] = useState(true);
   const [isReadMode, setIsReadMode] = useState(false);
+  
+  // Canvas widgets state
+  const [canvasWidgets, setCanvasWidgets] = useState<CanvasWidget[]>([]);
 
   // Effect to prevent keyboard when mode is 'draw'
   useEffect(() => {
     if (mode === 'draw') {
-      setKeyboardAllowed(false);
       Keyboard.dismiss();
 
-      // Add listener to prevent keyboard from showing
       const keyboardDidShowSubscription = Keyboard.addListener(
         'keyboardDidShow',
         () => {
@@ -83,19 +89,16 @@ export default function FullscreenEditor({
       return () => {
         keyboardDidShowSubscription.remove();
       };
-    } else {
-      setKeyboardAllowed(true);
     }
   }, [mode]);
+
   const toggleReadMode = () => {
     const newReadMode = !isReadMode;
     setIsReadMode(newReadMode);
 
     if (newReadMode) {
-      // When enabling read mode, dismiss keyboard
       Keyboard.dismiss();
     } else {
-      // When disabling read mode, focus the input after a delay
       setTimeout(() => {
         if (textInputRef.current && mode === 'text') {
           textInputRef.current.focus();
@@ -108,7 +111,6 @@ export default function FullscreenEditor({
     if (isReadMode) {
       Keyboard.dismiss();
 
-      // Prevent keyboard from showing
       const subscription = Keyboard.addListener('keyboardDidShow', () => {
         Keyboard.dismiss();
       });
@@ -117,7 +119,6 @@ export default function FullscreenEditor({
     }
   }, [isReadMode]);
 
-  // Also dismiss keyboard when modal closes
   useEffect(() => {
     if (!visible) {
       Keyboard.dismiss();
@@ -156,12 +157,10 @@ export default function FullscreenEditor({
     const newMode = mode === 'text' ? 'draw' : 'text';
     setMode(newMode);
 
-    // When switching to draw mode, dismiss keyboard
     if (newMode === 'draw') {
       Keyboard.dismiss();
     }
 
-    // When switching back to text mode, focus the input
     if (newMode === 'text') {
       setTimeout(() => {
         if (textInputRef.current) {
@@ -169,6 +168,35 @@ export default function FullscreenEditor({
         }
       }, 100);
     }
+  };
+
+  // Add a new canvas widget
+  const addCanvasWidget = () => {
+    const newWidget: CanvasWidget = {
+      id: `canvas_${Date.now()}`,
+      x: 50 + canvasWidgets.length * 30, // Offset each new widget
+      y: 100 + canvasWidgets.length * 30,
+      width: 300,
+      height: 400,
+    };
+    setCanvasWidgets((prev) => [...prev, newWidget]);
+    console.log(`🎨 Added canvas widget: ${newWidget.id}`);
+  };
+
+  // Remove a canvas widget
+  const removeCanvasWidget = (id: string) => {
+    setCanvasWidgets((prev) => prev.filter((widget) => widget.id !== id));
+    console.log(`🗑️ Removed canvas widget: ${id}`);
+  };
+
+  // Update canvas widget position/size
+  const updateCanvasWidget = (id: string, x: number, y: number, width: number, height: number) => {
+    setCanvasWidgets((prev) =>
+      prev.map((widget) =>
+        widget.id === id ? { ...widget, x, y, width, height } : widget
+      )
+    );
+    console.log(`📍 Updated canvas widget ${id}: (${x}, ${y}) ${width}x${height}`);
   };
 
   return (
@@ -199,13 +227,14 @@ export default function FullscreenEditor({
               canRedo={canRedo}
               errorColor={errorColor}
               mode={mode}
-              isReadMode={isReadMode} // Pass read mode state
+              isReadMode={isReadMode}
               onDiscard={onDiscard}
               onToggleMode={toggleMode}
-              onToggleReadMode={toggleReadMode} // Pass toggle function
+              onToggleReadMode={toggleReadMode}
               onUndo={onUndo}
               onRedo={onRedo}
               onClose={onClose}
+              onAddCanvas={addCanvasWidget} // Add this prop to your header
             />
 
             {/* Editor */}
@@ -216,7 +245,6 @@ export default function FullscreenEditor({
                   styles.editor,
                   {
                     color: theme.text,
-                    // Optional: Change background in read mode
                     backgroundColor: isReadMode
                       ? theme.background + '80'
                       : theme.background,
@@ -234,6 +262,22 @@ export default function FullscreenEditor({
                 scrollEnabled={true}
                 pointerEvents={isReadMode ? 'none' : 'auto'}
               />
+
+              {/* Floating Canvas Widgets */}
+              {canvasWidgets.map((widget) => (
+                <FloatingCanvasWidget
+                  key={widget.id}
+                  theme={theme}
+                  initialX={widget.x}
+                  initialY={widget.y}
+                  initialWidth={widget.width}
+                  initialHeight={widget.height}
+                  onClose={() => removeCanvasWidget(widget.id)}
+                  onPositionChange={(x, y, width, height) =>
+                    updateCanvasWidget(widget.id, x, y, width, height)
+                  }
+                />
+              ))}
             </View>
 
             {/* Footer */}
@@ -245,6 +289,7 @@ export default function FullscreenEditor({
             >
               <Text style={[styles.stats, { color: theme.textSecondary }]}>
                 {charCount} characters • {wordCount} words • {lineCount} lines
+                {canvasWidgets.length > 0 && ` • ${canvasWidgets.length} canvas${canvasWidgets.length > 1 ? 'es' : ''}`}
               </Text>
             </View>
           </View>

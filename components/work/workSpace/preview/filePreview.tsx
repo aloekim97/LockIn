@@ -3,10 +3,10 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -17,10 +17,8 @@ interface FilePreviewProps {
   loading?: boolean;
   saving?: boolean;
   hasChanges?: boolean;
-  isEditing?: boolean;
   canUndo?: boolean;
   canRedo?: boolean;
-  isFullscreen?: boolean;
   error?: string | null;
   readOnly?: boolean;
   charCount?: number;
@@ -28,7 +26,6 @@ interface FilePreviewProps {
   lineCount?: number;
   onShare?: () => void;
   onToggleEditMode?: () => void;
-  onToggleFullscreen?: () => void;
   onDiscard?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
@@ -42,10 +39,8 @@ export default function FilePreview({
   loading = false,
   saving = false,
   hasChanges = false,
-  isEditing = false,
   canUndo = false,
   canRedo = false,
-  isFullscreen = false,
   error = null,
   readOnly = false,
   charCount = 0,
@@ -53,7 +48,6 @@ export default function FilePreview({
   lineCount = 0,
   onShare = () => {},
   onToggleEditMode = () => {},
-  onToggleFullscreen = () => {},
   onDiscard = () => {},
   onUndo = () => {},
   onRedo = () => {},
@@ -67,10 +61,7 @@ export default function FilePreview({
       <View
         style={[
           styles.header,
-          {
-            borderBottomColor: theme.textSecondary + '30',
-            backgroundColor: theme.card,
-          },
+          { borderBottomColor: theme.textSecondary + '30' },
         ]}
       >
         <View style={styles.headerLeft}>
@@ -83,69 +74,51 @@ export default function FilePreview({
 
           {readOnly && (
             <View
-              style={[
-                styles.readOnlyBadge,
-                { backgroundColor: theme.primary + '20' },
-              ]}
+              style={[styles.badge, { backgroundColor: theme.primary + '20' }]}
             >
-              <Text style={[styles.readOnlyText, { color: theme.primary }]}>
+              <Text style={[styles.badgeText, { color: theme.primary }]}>
                 Read Only
               </Text>
             </View>
           )}
 
-          {saving && !readOnly && (
-            <View style={styles.savingIndicator}>
+          {saving && (
+            <View
+              style={[styles.badge, { backgroundColor: theme.primary + '20' }]}
+            >
               <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={[styles.savingText, { color: theme.textSecondary }]}>
+              <Text style={[styles.badgeText, { color: theme.primary }]}>
                 Saving...
               </Text>
             </View>
           )}
 
-          {hasChanges && !saving && isEditing && !readOnly && (
-            <Text style={[styles.unsavedText, { color: theme.primary }]}>
-              • Unsaved
-            </Text>
+          {hasChanges && !saving && (
+            <View style={[styles.badge, { backgroundColor: '#f59e0b20' }]}>
+              <Text style={[styles.badgeText, { color: '#f59e0b' }]}>
+                Unsaved
+              </Text>
+            </View>
           )}
         </View>
 
-        <View style={styles.headerButtons}>
-          {/* Share button - only in non-edit mode and not readOnly */}
-          {!isEditing && !readOnly && (
-            <TouchableOpacity
-              onPress={onShare}
-              style={[styles.iconButton, { backgroundColor: theme.card }]}
-            >
-              <Ionicons name="share-outline" size={20} color={theme.text} />
-            </TouchableOpacity>
-          )}
-
-          {/* Fullscreen button - only in edit mode, not fullscreen, and not readOnly */}
-          {isEditing && !isFullscreen && !readOnly && (
-            <TouchableOpacity
-              onPress={onToggleFullscreen}
-              style={[styles.iconButton, { backgroundColor: theme.card }]}
-            >
-              <Ionicons name="expand-outline" size={20} color={theme.text} />
-            </TouchableOpacity>
-          )}
-
-          {/* Undo/Redo buttons - only in edit mode and not readOnly */}
-          {isEditing && !readOnly && (
+        <View style={styles.headerRight}>
+          {/* Undo/Redo buttons */}
+          {!readOnly && (
             <>
               <TouchableOpacity
                 onPress={onUndo}
                 disabled={!canUndo}
                 style={[
                   styles.iconButton,
-                  {
-                    backgroundColor: theme.card,
-                    opacity: canUndo ? 1 : 0.4,
-                  },
+                  !canUndo && styles.iconButtonDisabled,
                 ]}
               >
-                <Ionicons name="arrow-undo" size={20} color={theme.text} />
+                <Ionicons
+                  name="arrow-undo"
+                  size={20}
+                  color={canUndo ? theme.text : theme.textSecondary + '50'}
+                />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -153,56 +126,42 @@ export default function FilePreview({
                 disabled={!canRedo}
                 style={[
                   styles.iconButton,
-                  {
-                    backgroundColor: theme.card,
-                    opacity: canRedo ? 1 : 0.4,
-                  },
+                  !canRedo && styles.iconButtonDisabled,
                 ]}
               >
-                <Ionicons name="arrow-redo" size={20} color={theme.text} />
+                <Ionicons
+                  name="arrow-redo"
+                  size={20}
+                  color={canRedo ? theme.text : theme.textSecondary + '50'}
+                />
               </TouchableOpacity>
+
+              {hasChanges && (
+                <TouchableOpacity onPress={onDiscard} style={styles.iconButton}>
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={20}
+                    color={errorColor}
+                  />
+                </TouchableOpacity>
+              )}
             </>
           )}
 
-          {/* Discard button - only in edit mode with changes and not readOnly */}
-          {isEditing && hasChanges && !readOnly && (
-            <TouchableOpacity
-              onPress={onDiscard}
-              style={[
-                styles.discardButton,
-                { borderColor: errorColor, borderWidth: 1 },
-              ]}
-            >
-              <Text style={{ color: errorColor, fontWeight: '600' }}>
-                Discard
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Edit button - only if not readOnly */}
+          {/* Edit button */}
           {!readOnly && (
             <TouchableOpacity
               onPress={onToggleEditMode}
-              style={[
-                styles.editButton,
-                { backgroundColor: isEditing ? theme.card : theme.primary },
-              ]}
+              style={[styles.iconButton, { backgroundColor: theme.primary }]}
             >
-              <Ionicons
-                name={isEditing ? 'checkmark' : 'pencil'}
-                size={20}
-                color={isEditing ? theme.text : 'white'}
-              />
-              <Text
-                style={[
-                  styles.editButtonText,
-                  { color: isEditing ? theme.text : 'white' },
-                ]}
-              >
-                {isEditing ? 'Done' : 'Edit'}
-              </Text>
+              <Ionicons name="pencil" size={20} color="white" />
             </TouchableOpacity>
           )}
+
+          {/* Share button */}
+          <TouchableOpacity onPress={onShare} style={styles.iconButton}>
+            <Ionicons name="share-outline" size={20} color={theme.text} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -210,6 +169,9 @@ export default function FilePreview({
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+            Loading file...
+          </Text>
         </View>
       ) : error ? (
         <View style={styles.centered}>
@@ -219,36 +181,44 @@ export default function FilePreview({
             onPress={onRetry}
             style={[styles.retryButton, { backgroundColor: theme.primary }]}
           >
-            <Text style={{ color: 'white', fontWeight: '600' }}>Retry</Text>
+            <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+          bounces={true}
+          alwaysBounceVertical={true}
+        >
           {content ? (
             <Text style={[styles.contentText, { color: theme.text }]}>
               {content}
             </Text>
           ) : (
             <View style={styles.emptyContent}>
-              <Text style={{ color: theme.textSecondary }}>File is empty</Text>
+              <Ionicons
+                name="document-outline"
+                size={48}
+                color={theme.textSecondary + '50'}
+              />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                File is empty
+              </Text>
             </View>
           )}
         </ScrollView>
       )}
 
       {/* Footer Stats */}
-      {!isEditing && (
-        <View
-          style={[
-            styles.footer,
-            { borderTopColor: theme.textSecondary + '30' },
-          ]}
-        >
-          <Text style={[styles.stats, { color: theme.textSecondary }]}>
-            {charCount} characters • {wordCount} words • {lineCount} lines
-          </Text>
-        </View>
-      )}
+      <View
+        style={[styles.footer, { borderTopColor: theme.textSecondary + '30' }]}
+      >
+        <Text style={[styles.stats, { color: theme.textSecondary }]}>
+          {charCount} characters • {wordCount} words • {lineCount} lines
+        </Text>
+      </View>
     </View>
   );
 }
@@ -258,7 +228,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
@@ -274,71 +243,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   fileName: {
     fontSize: 18,
     fontWeight: '600',
+    flexShrink: 1,
   },
-  readOnlyBadge: {
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    gap: 4,
   },
-  readOnlyText: {
+  badgeText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  savingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  savingText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  unsavedText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
   },
   iconButton: {
     padding: 8,
     borderRadius: 6,
   },
-  discardButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    gap: 6,
-  },
-  editButtonText: {
-    fontWeight: '600',
+  iconButtonDisabled: {
+    opacity: 0.5,
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     padding: 16,
+    flexGrow: 1,
   },
   contentText: {
     fontSize: 16,
     lineHeight: 24,
-    userSelect: 'none', // Prevents text selection
   },
   emptyContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 16,
   },
   centered: {
     flex: 1,
@@ -347,15 +300,23 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     gap: 12,
   },
+  loadingText: {
+    fontSize: 14,
+  },
   errorText: {
     fontSize: 16,
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
   retryButton: {
     marginTop: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
   footer: {
     paddingHorizontal: 16,
@@ -364,6 +325,5 @@ const styles = StyleSheet.create({
   },
   stats: {
     fontSize: 12,
-    fontStyle: 'italic',
   },
 });

@@ -24,6 +24,7 @@ interface FullscreenHeaderProps {
   onUndo: () => void;
   onRedo: () => void;
   onClose: () => void;
+  onAddCanvas?: () => void;
 }
 
 export default function FullscreenHeader({
@@ -41,16 +42,14 @@ export default function FullscreenHeader({
   onUndo,
   onRedo,
   onClose,
+  onAddCanvas,
 }: FullscreenHeaderProps) {
   return (
     <View
       style={[styles.header, { borderBottomColor: theme.textSecondary + '30' }]}
     >
       <View style={styles.headerLeft}>
-        <TouchableOpacity
-          onPress={onClose}
-          style={[styles.closeButton]}
-        >
+        <TouchableOpacity onPress={onClose} style={[styles.closeButton]}>
           <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <Text
@@ -72,6 +71,13 @@ export default function FullscreenHeader({
           </View>
         )}
       </View>
+
+      <TouchableOpacity
+        onPress={onAddCanvas}
+        style={[styles.iconButton, { backgroundColor: theme.primary }]}
+      >
+        <Ionicons name="add-circle" size={20} color="white" />
+      </TouchableOpacity>
 
       <View style={styles.headerButtons}>
         {/* Read Mode Toggle Button */}
@@ -223,5 +229,9 @@ const styles = StyleSheet.create({
   buttonText: {
     fontWeight: '600',
     fontSize: 14,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 6,
   },
 });
