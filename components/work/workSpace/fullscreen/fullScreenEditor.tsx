@@ -1,7 +1,6 @@
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   Modal,
   KeyboardAvoidingView,
@@ -10,14 +9,17 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRef, useState, useEffect } from 'react';
-import CanvasWidget from './canvasWidget';
 import FullscreenHeader from './fullscreenHeader';
 import FloatingCanvasWidget from './canvasWidget';
 import TextCanvas from './textCanvas';
+import type { MarkupMode } from './textCanvas';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface FullscreenEditorProps {
   visible: boolean;
   fileName: string;
+  filePath: string;
   content: string;
   saving: boolean;
   hasChanges: boolean;
@@ -34,8 +36,6 @@ interface FullscreenEditorProps {
   onClose: () => void;
 }
 
-type EditorMode = 'text' | 'draw';
-
 interface CanvasWidget {
   id: string;
   x: number;
@@ -47,6 +47,7 @@ interface CanvasWidget {
 export default function FullscreenEditor({
   visible,
   fileName,
+  filePath,
   content,
   saving,
   hasChanges,
@@ -63,15 +64,14 @@ export default function FullscreenEditor({
   onClose,
 }: FullscreenEditorProps) {
   const errorColor = '#ef4444';
-  const [mode, setMode] = useState<EditorMode>('text');
-  const textInputRef = useRef<TextInput>(null);
+  const textCanvasRef = useRef<any>(null);
   const [isReadMode, setIsReadMode] = useState(false);
   const [lastTap, setLastTap] = useState<number | null>(null);
   const DOUBLE_TAP_DELAY = 400;
   const [canvasWidgets, setCanvasWidgets] = useState<CanvasWidget[]>([]);
   const [activeCanvasId, setActiveCanvasId] = useState<string | null>(null);
+  const [textCanvasMode, setTextCanvasMode] = useState<MarkupMode>(null);
 
-  // Canvas creation state
   const [isCreatingCanvas, setIsCreatingCanvas] = useState(false);
   const [canvasCreationStart, setCanvasCreationStart] = useState<{
     x: number;
@@ -80,12 +80,25 @@ export default function FullscreenEditor({
   const [previewCanvas, setPreviewCanvas] = useState<CanvasWidget | null>(null);
 
   const isEditingLocked =
-    isReadMode || activeCanvasId !== null || mode === 'draw';
+    isReadMode ||
+    activeCanvasId !== null ||
+    textCanvasMode === 'Draw' ||
+    textCanvasMode === 'Write';
+
+  useEffect(() => {
+    if (isEditingLocked || isCreatingCanvas) {
+      Keyboard.dismiss();
+      const sub = Keyboard.addListener('keyboardDidShow', () =>
+        Keyboard.dismiss()
+      );
+      return () => sub.remove();
+    }
+  }, [isEditingLocked, isCreatingCanvas]);
 
   const handleTouch = (evt: any, isDragging: boolean = false) => {
+    if (textCanvasMode === 'Draw' || textCanvasMode === 'Write') return;
     const { pageX, pageY } = evt.nativeEvent;
     const now = Date.now();
-
     if (!isDragging && !isCreatingCanvas) {
       if (lastTap && now - lastTap < DOUBLE_TAP_DELAY) {
         setIsCreatingCanvas(true);
@@ -99,23 +112,19 @@ export default function FullscreenEditor({
         });
         setLastTap(null);
         Keyboard.dismiss();
-      } else {
-        setLastTap(now);
-      }
+      } else setLastTap(now);
     } else if (isCreatingCanvas && canvasCreationStart) {
       const width = Math.abs(pageX - canvasCreationStart.x);
       const height = Math.abs(pageY - canvasCreationStart.y);
       const x = Math.min(pageX, canvasCreationStart.x);
       const y = Math.min(pageY, canvasCreationStart.y);
-
       setPreviewCanvas({ id: 'preview', x, y, width, height });
     }
   };
 
   const handleTouchEnd = () => {
     if (isCreatingCanvas && previewCanvas) {
-      const minSize = 50;
-      if (previewCanvas.width >= minSize && previewCanvas.height >= minSize) {
+      if (previewCanvas.width >= 50 && previewCanvas.height >= 50) {
         const newWidget: CanvasWidget = {
           id: `canvas_${Date.now()}`,
           x: previewCanvas.x,
@@ -124,17 +133,12 @@ export default function FullscreenEditor({
           height: previewCanvas.height,
         };
         setCanvasWidgets((prev) => [...prev, newWidget]);
+        setActiveCanvasId(newWidget.id);
       }
       setIsCreatingCanvas(false);
       setCanvasCreationStart(null);
       setPreviewCanvas(null);
     }
-  };
-
-  const toggleMode = () => {
-    const newMode = mode === 'text' ? 'draw' : 'text';
-    setMode(newMode);
-    if (newMode === 'draw') Keyboard.dismiss();
   };
 
   const toggleReadMode = () => {
@@ -145,12 +149,19 @@ export default function FullscreenEditor({
   const addCanvasWidget = () => {
     const newWidget: CanvasWidget = {
       id: `canvas_${Date.now()}`,
-      x: 50,
-      y: 150,
+      x: 50 + canvasWidgets.length * 30,
+      y: 100 + canvasWidgets.length * 30,
       width: 300,
       height: 400,
     };
     setCanvasWidgets((prev) => [...prev, newWidget]);
+    setActiveCanvasId(newWidget.id);
+    Keyboard.dismiss();
+  };
+
+  const handleTextCanvasModeChange = (newMode: MarkupMode) => {
+    setTextCanvasMode(newMode);
+    if (newMode === 'Draw' || newMode === 'Write') Keyboard.dismiss();
   };
 
   return (
@@ -159,111 +170,123 @@ export default function FullscreenEditor({
       animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={onClose}
+      statusBarTranslucent={Platform.OS === 'android'}
     >
-      {mode === 'draw' ? (
-        <CanvasWidget theme={theme} onClose={toggleMode} />
-      ) : (
-        <KeyboardAvoidingView
-          style={{ flex: 1, backgroundColor: theme.background }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <FullscreenHeader
-            fileName={fileName}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: theme.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <FullscreenHeader
+          fileName={fileName}
+          theme={theme}
+          hasChanges={hasChanges}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          errorColor={errorColor}
+          isReadMode={isReadMode}
+          onDiscard={onDiscard}
+          onToggleReadMode={toggleReadMode}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          onClose={onClose}
+          onAddCanvas={addCanvasWidget}
+          mode={textCanvasMode === 'Draw' ? 'Draw' : 'Text'}
+          onToggleMode={() => {
+            const nextMode = textCanvasMode === 'Draw' ? null : 'Draw';
+            handleTextCanvasModeChange(nextMode);
+          }}
+        />
+
+        <View style={{ flex: 1 }}>
+          <TextCanvas
+            ref={textCanvasRef}
+            filePath={filePath}
             theme={theme}
-            hasChanges={hasChanges}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            errorColor={errorColor}
-            mode={mode}
-            isReadMode={isReadMode}
-            onDiscard={onDiscard}
-            onToggleMode={toggleMode}
-            onToggleReadMode={toggleReadMode}
-            onUndo={onUndo}
-            onRedo={onRedo}
-            onClose={onClose}
-            onAddCanvas={addCanvasWidget}
+            placeholder="Start typing..."
+            editable={!isEditingLocked && !isCreatingCanvas}
+            onModeChange={handleTextCanvasModeChange}
+            style={{
+              backgroundColor: isReadMode
+                ? theme.background + '80'
+                : theme.background,
+            }}
           />
 
-          <View style={{ flex: 1 }}>
-            <TextCanvas
-              ref={textInputRef}
-              theme={theme}
-              value={content}
-              onChangeText={onContentChange}
-              placeholder="Start typing..."
-              editable={!isEditingLocked && !isCreatingCanvas}
-              style={{
-                backgroundColor: isReadMode
-                  ? theme.background + '80'
-                  : theme.background,
-              }}
-            />
-
-            {/* Overlay for detecting double-tap to create canvas */}
-            <View
-              style={StyleSheet.absoluteFill}
-              onStartShouldSetResponder={() => true}
-              onMoveShouldSetResponder={() => isCreatingCanvas}
-              onResponderGrant={(e) => handleTouch(e)}
-              onResponderMove={(e) => handleTouch(e, true)}
-              onResponderRelease={handleTouchEnd}
-              pointerEvents={isCreatingCanvas ? 'auto' : 'box-none'}
-            />
-
-            {previewCanvas && previewCanvas.width > 0 && (
-              <View
-                style={{
-                  position: 'absolute',
-                  left: previewCanvas.x,
-                  top: previewCanvas.y,
-                  width: previewCanvas.width,
-                  height: previewCanvas.height,
-                  borderWidth: 2,
-                  borderColor: theme.textSecondary,
-                  borderStyle: 'dashed',
-                  backgroundColor: theme.background + '40',
-                  borderRadius: 8,
-                }}
-                pointerEvents="none"
-              />
-            )}
-
-            {canvasWidgets.map((widget) => (
-              <FloatingCanvasWidget
-                key={widget.id}
-                theme={theme}
-                initialX={widget.x}
-                initialY={widget.y}
-                initialWidth={widget.width}
-                initialHeight={widget.height}
-                onClose={() =>
-                  setCanvasWidgets((prev) =>
-                    prev.filter((w) => w.id !== widget.id)
-                  )
-                }
-                onInteractionStart={() => {
-                  setActiveCanvasId(widget.id);
-                  Keyboard.dismiss();
-                }}
-                onInteractionEnd={() => setActiveCanvasId(null)}
-              />
-            ))}
-          </View>
-
           <View
-            style={[
-              styles.footer,
-              { borderTopColor: theme.textSecondary + '30' },
-            ]}
-          >
-            <Text style={[styles.stats, { color: theme.textSecondary }]}>
-              {charCount} chars • {wordCount} words • {canvasWidgets.length}{' '}
-              canvases
-            </Text>
-          </View>
-        </KeyboardAvoidingView>
-      )}
+            style={StyleSheet.absoluteFill}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => isCreatingCanvas}
+            onResponderGrant={(e) => handleTouch(e)}
+            onResponderMove={(e) => handleTouch(e, true)}
+            onResponderRelease={handleTouchEnd}
+            pointerEvents={
+              isCreatingCanvas || textCanvasMode === null ? 'auto' : 'box-none'
+            }
+          />
+
+          {previewCanvas && previewCanvas.width > 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                left: previewCanvas.x,
+                top: previewCanvas.y,
+                width: previewCanvas.width,
+                height: previewCanvas.height,
+                borderWidth: 2,
+                borderColor: theme.primary || theme.text,
+                borderStyle: 'dashed',
+                backgroundColor: theme.background + '40',
+                borderRadius: 8,
+              }}
+              pointerEvents="none"
+            />
+          )}
+
+          {canvasWidgets.map((widget) => (
+            <FloatingCanvasWidget
+              key={widget.id}
+              theme={theme}
+              initialX={widget.x}
+              initialY={widget.y}
+              initialWidth={widget.width}
+              initialHeight={widget.height}
+              onClose={() =>
+                setCanvasWidgets((prev) =>
+                  prev.filter((w) => w.id !== widget.id)
+                )
+              }
+              onPositionChange={(x, y, width, height) => {
+                setCanvasWidgets((prev) =>
+                  prev.map((w) =>
+                    w.id === widget.id ? { ...w, x, y, width, height } : w
+                  )
+                );
+              }}
+              onInteractionStart={() => {
+                setActiveCanvasId(widget.id);
+                Keyboard.dismiss();
+              }}
+              onInteractionEnd={() => setActiveCanvasId(null)}
+            />
+          ))}
+        </View>
+
+        <View
+          style={[
+            styles.footer,
+            { borderTopColor: theme.textSecondary + '30' },
+          ]}
+        >
+          <Text style={[styles.stats, { color: theme.textSecondary }]}>
+            {charCount} chars • {wordCount} words • {lineCount} lines
+            {canvasWidgets.length > 0 &&
+              ` • ${canvasWidgets.length} floating canvas${
+                canvasWidgets.length > 1 ? 'es' : ''
+              }`}
+            {textCanvasMode && ` • Mode: ${textCanvasMode}`}
+          </Text>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

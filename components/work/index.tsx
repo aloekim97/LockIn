@@ -47,7 +47,6 @@ function FilePreviewWrapper({ filePath, fileName }: FilePreviewWrapperProps) {
     contentLength: content?.length || 0,
   });
 
-
   const handleOpenFullscreen = () => {
     setIsFullscreenOpen(true);
   };
@@ -83,6 +82,7 @@ function FilePreviewWrapper({ filePath, fileName }: FilePreviewWrapperProps) {
       <FullscreenEditor
         visible={isFullscreenOpen}
         fileName={fileName}
+        filePath={filePath}
         content={content}
         saving={saving}
         hasChanges={hasChanges}

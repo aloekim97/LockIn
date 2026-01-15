@@ -1,4 +1,3 @@
-// components/FloatingCanvasWidget.tsx
 import {
   View,
   StyleSheet,

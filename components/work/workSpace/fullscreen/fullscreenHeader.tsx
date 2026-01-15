@@ -16,7 +16,7 @@ interface FullscreenHeaderProps {
   canUndo: boolean;
   canRedo: boolean;
   errorColor: string;
-  mode: 'text' | 'draw';
+  mode: 'Text' | 'Draw';
   isReadMode: boolean;
   onDiscard: () => void;
   onToggleMode: () => void;
@@ -119,7 +119,7 @@ export default function FullscreenHeader({
             style={[styles.modeButton, { backgroundColor: theme.primary }]}
           >
             <Ionicons
-              name={mode === 'text' ? 'brush' : 'create-outline'}
+              name={mode === 'Text' ? 'brush' : 'create-outline'}
               size={20}
               color="white"
             />
