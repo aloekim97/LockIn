@@ -1,4 +1,10 @@
-import React, { useRef, useState, useMemo, useCallback } from 'react';
+import React, {
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+} from 'react';
 import {
   StyleSheet,
   PanResponder,
@@ -8,17 +14,13 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
+  Dimensions,
 } from 'react-native';
-
-// Helpers
-import * as Helpers from '../../../../hooks/markUpModal/useMarkUpModal';
-
-// Sub-components
 import WritingOption from './markUpOptions/writingOptions';
 import ColorPicker from './markUpOptions/colorPicker';
 import ThicknessPicker from './markUpOptions/thicknessPicker';
-import ActiveIcon from './markUpOptions/activeIcon';
 import { MarkupMode } from './textCanvas';
+import ActiveIcon from './markUpOptions/activeIcon';
 
 interface MarkUpModalProps {
   onModeChange: (mode: MarkupMode) => void;
@@ -27,6 +29,10 @@ interface MarkUpModalProps {
   onColorChange?: (color: string) => void;
   onThicknessChange?: (thickness: number) => void;
 }
+
+const COLLAPSED_SIZE = 100;
+const EXPANDED_SIZE = 600;
+const MARGIN = 40;
 
 const MarkUpModal: React.FC<MarkUpModalProps> = ({
   onModeChange,
@@ -37,15 +43,21 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [side, setSide] = useState<'left' | 'right'>('right');
+  const screenWidth = useRef(Dimensions.get('window').width).current;
+
   const [isLocked, setIsLocked] = useState(false);
   const [isPressing, setIsPressing] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#000000');
   const [selectedThickness, setSelectedThickness] = useState(4);
 
-  // Animated Values
+  // Initial Position: Bottom Right
   const pan = useRef(
-    new Animated.ValueXY({ x: Helpers.getInitialX('right'), y: 0 })
+    new Animated.ValueXY({
+      x: screenWidth - COLLAPSED_SIZE - MARGIN,
+      y: 0,
+    })
   ).current;
+
   const expandAnim = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const lockProgressAnim = useRef(new Animated.Value(0)).current;
@@ -70,7 +82,7 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [isOpen, isLocked, expandAnim, backdropOpacity]);
+  }, [isOpen, expandAnim, backdropOpacity, isLocked]);
 
   const panResponder = useMemo(
     () =>
@@ -83,12 +95,12 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
         onPanResponderGrant: () => {
           if (isLocked || isOpen) return;
           pan.extractOffset();
-          setIsPressing(true);
 
+          setIsPressing(true);
           lockProgressAnim.setValue(0);
           Animated.timing(lockProgressAnim, {
             toValue: 1,
-            duration: Helpers.LOCK_DURATION,
+            duration: 1000,
             useNativeDriver: false,
           }).start(({ finished }) => {
             if (finished) {
@@ -113,8 +125,9 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
           lockProgressAnim.stopAnimation();
           pan.flattenOffset();
 
-          const currentX = (pan.x as any)._value;
-          setSide(Helpers.calculateSide(currentX));
+          // Side detection: check where the center of the circle is
+          const currentX = (pan.x as any)._value + COLLAPSED_SIZE / 2;
+          setSide(currentX < screenWidth / 2 ? 'left' : 'right');
 
           if (
             Math.abs(gesture.dx) < 5 &&
@@ -126,13 +139,25 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
           }
         },
       }),
-    [pan, isLocked, isOpen, handleToggle, lockProgressAnim]
+    [pan, isLocked, isOpen, handleToggle, lockProgressAnim, screenWidth]
   );
 
-  const { modalWidth, translateX, contentOpacity } = Helpers.getAnimationStyles(
-    expandAnim,
-    side
-  );
+  // Interpolations
+  const modalWidth = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLLAPSED_SIZE, EXPANDED_SIZE],
+  });
+
+  // If on the right, we translate left by the amount we grew to keep the right edge stable
+  const translateX = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, side === 'right' ? -(EXPANDED_SIZE - COLLAPSED_SIZE) : 0],
+  });
+
+  const contentOpacity = expandAnim.interpolate({
+    inputRange: [0, 0.8, 1],
+    outputRange: [0, 0, 1],
+  });
 
   if (!visible) return null;
 
@@ -160,6 +185,8 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
           isLocked && styles.circleLocked,
           {
             width: modalWidth,
+            // We use pan.getLayout() for the core movement
+            // and add translateX for the expansion shift
             transform: [
               { translateX: Animated.add(pan.x, translateX) },
               { translateY: pan.y },
@@ -252,7 +279,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1b2026',
     position: 'absolute',
     bottom: 60,
-    left: 0,
+    left: 0, // IMPORTANT: Base everything off left to prevent jumping
     borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',

@@ -28,7 +28,6 @@ const ThicknessPicker: React.FC<ThicknessPickerProps> = ({
               width: t + 10,
               height: t + 10,
               borderRadius: (t + 10) / 2,
-              // If active, use selectedColor; otherwise use default gray
               backgroundColor: current === t ? selectedColor : '#555',
             },
             current === t && styles.activeDot,

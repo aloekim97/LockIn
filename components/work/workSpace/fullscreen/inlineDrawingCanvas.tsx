@@ -60,14 +60,11 @@ export default function InlineDrawingCanvas({
 
   const pathToSvgString = (path: DrawingPath): string => {
     if (path.points.length === 0) return '';
-    
     const [first, ...rest] = path.points;
     let d = `M ${first.x} ${first.y}`;
-    
     for (const point of rest) {
       d += ` L ${point.x} ${point.y}`;
     }
-    
     return d;
   };
 
@@ -86,7 +83,6 @@ export default function InlineDrawingCanvas({
             strokeLinejoin="round"
           />
         ))}
-        
         {/* Render current path being drawn */}
         {currentPath && currentPath.points.length > 0 && (
           <Path

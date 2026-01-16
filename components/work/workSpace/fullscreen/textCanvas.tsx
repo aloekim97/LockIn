@@ -1,3 +1,5 @@
+//fix the way thee modal opens
+
 import React, {
   forwardRef,
   useState,
@@ -96,6 +98,9 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
     const [writingPaths, setWritingPaths] = useState<DrawingPath[]>([]);
     const [textContent, setTextContent] = useState('');
     const [loading, setLoading] = useState(true);
+    const [selectedColor, setSelectedColor] = useState('#000000');
+    const [selectedThickness, setSelectedThickness] = useState(4);
+    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
     const flattenStyle = StyleSheet.flatten([
       styles.editor,
@@ -179,6 +184,26 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
     useEffect(() => {
       loadMarkup();
     }, [filePath]);
+
+    useEffect(() => {
+      const keyboardDidShowListener = Keyboard.addListener(
+        'keyboardDidShow',
+        () => {
+          setIsKeyboardVisible(true);
+        }
+      );
+      const keyboardDidHideListener = Keyboard.addListener(
+        'keyboardDidHide',
+        () => {
+          setIsKeyboardVisible(false);
+        }
+      );
+
+      return () => {
+        keyboardDidShowListener.remove();
+        keyboardDidHideListener.remove();
+      };
+    }, []);
 
     useImperativeHandle(ref, () => ({
       getData: (): MarkupData => ({
@@ -318,8 +343,8 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
           <InlineDrawingCanvas
             paths={drawingPaths}
             onPathsChange={handleDrawingPathsChange}
-            color="#FF0000"
-            strokeWidth={3}
+            color={selectedColor}
+            strokeWidth={selectedThickness}
           />
         )}
 
@@ -327,13 +352,18 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
           <InlineDrawingCanvas
             paths={writingPaths}
             onPathsChange={handleWritingPathsChange}
-            color="#0000FF"
-            strokeWidth={2}
+            color={selectedColor}
+            strokeWidth={selectedThickness}
           />
         )}
 
-        {(mode === 'Draw' || 'Write') && (
-          <MarkUpModal onModeChange={handleModeChange} currentMode={mode} />
+        {!isKeyboardVisible && (
+          <MarkUpModal
+            onModeChange={handleModeChange}
+            currentMode={mode}
+            onColorChange={setSelectedColor}
+            onThicknessChange={setSelectedThickness}
+          />
         )}
       </View>
     );
