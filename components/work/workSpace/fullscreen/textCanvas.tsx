@@ -1,4 +1,4 @@
-//fix the way thee modal opens
+//fix drawing
 
 import React, {
   forwardRef,
@@ -98,9 +98,21 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
     const [writingPaths, setWritingPaths] = useState<DrawingPath[]>([]);
     const [textContent, setTextContent] = useState('');
     const [loading, setLoading] = useState(true);
-    const [selectedColor, setSelectedColor] = useState('#000000');
+    
+    // Determine initial color based on theme
+    const getInitialColor = () => {
+      if (!currentTheme.text) return '#000000';
+      return currentTheme.text;
+    };
+    
+    const [selectedColor, setSelectedColor] = useState(getInitialColor());
     const [selectedThickness, setSelectedThickness] = useState(4);
     const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+    // Update color when theme changes
+    useEffect(() => {
+      setSelectedColor(getInitialColor());
+    }, [currentTheme.text]);
 
     const flattenStyle = StyleSheet.flatten([
       styles.editor,
@@ -263,6 +275,16 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
       setWritingPaths(paths);
     }, []);
 
+    const handleColorChange = useCallback((color: string) => {
+      console.log('Color changed to:', color);
+      setSelectedColor(color);
+    }, []);
+
+    const handleThicknessChange = useCallback((thickness: number) => {
+      console.log('Thickness changed to:', thickness);
+      setSelectedThickness(thickness);
+    }, []);
+
     const isTextInputEditable = editable && (mode === null || mode === 'Text');
 
     if (loading) {
@@ -361,8 +383,9 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
           <MarkUpModal
             onModeChange={handleModeChange}
             currentMode={mode}
-            onColorChange={setSelectedColor}
-            onThicknessChange={setSelectedThickness}
+            onColorChange={handleColorChange}
+            onThicknessChange={handleThicknessChange}
+            theme={currentTheme}
           />
         )}
       </View>

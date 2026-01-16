@@ -86,15 +86,6 @@ export default function PreviewHeader({
           </TouchableOpacity>
         )}
 
-        {isEditing && !isFullscreen && (
-          <TouchableOpacity
-            onPress={onToggleFullscreen}
-            style={[styles.fullscreenButton, { backgroundColor: theme.card }]}
-          >
-            <Ionicons name="expand-outline" size={20} color={theme.text} />
-          </TouchableOpacity>
-        )}
-
         {isEditing && (
           <>
             <TouchableOpacity
@@ -141,15 +132,16 @@ export default function PreviewHeader({
           </TouchableOpacity>
         )}
 
+        {/* Changed: Edit button now becomes Fullscreen button when not editing */}
         <TouchableOpacity
-          onPress={onToggleEditMode}
+          onPress={isEditing ? onToggleEditMode : onToggleFullscreen}
           style={[
             styles.editButton,
             { backgroundColor: isEditing ? theme.card : theme.primary },
           ]}
         >
           <Ionicons
-            name={isEditing ? 'checkmark' : 'pencil'}
+            name={isEditing ? 'checkmark' : 'expand'}
             size={20}
             color={isEditing ? theme.text : 'white'}
           />
@@ -159,7 +151,7 @@ export default function PreviewHeader({
               { color: isEditing ? theme.text : 'white' },
             ]}
           >
-            {isEditing ? 'Done' : 'Edit'}
+            {isEditing ? 'Done' : 'Fullscreen'}
           </Text>
         </TouchableOpacity>
       </View>

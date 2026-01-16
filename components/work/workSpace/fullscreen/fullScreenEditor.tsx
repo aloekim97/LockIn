@@ -65,7 +65,7 @@ export default function FullscreenEditor({
 }: FullscreenEditorProps) {
   const errorColor = '#ef4444';
   const textCanvasRef = useRef<any>(null);
-  const [isReadMode, setIsReadMode] = useState(false);
+  const [isReadMode, setIsReadMode] = useState(true);
   const [lastTap, setLastTap] = useState<number | null>(null);
   const DOUBLE_TAP_DELAY = 400;
   const [canvasWidgets, setCanvasWidgets] = useState<CanvasWidget[]>([]);
@@ -210,20 +210,25 @@ export default function FullscreenEditor({
                 ? theme.background + '80'
                 : theme.background,
             }}
+            pointerEvents={textCanvasMode === 'Draw' || textCanvasMode === 'Write' ? 'none' : 'auto'}
           />
 
-          <View
-            style={StyleSheet.absoluteFill}
-            onStartShouldSetResponder={() => true}
-            onMoveShouldSetResponder={() => isCreatingCanvas}
-            onResponderGrant={(e) => handleTouch(e)}
-            onResponderMove={(e) => handleTouch(e, true)}
-            onResponderRelease={handleTouchEnd}
-            pointerEvents={
-              isCreatingCanvas || textCanvasMode === null ? 'auto' : 'box-none'
-            }
-          />
+          {/* Touch handler for canvas creation */}
+          {textCanvasMode !== 'Draw' && textCanvasMode !== 'Write' && (
+            <View
+              style={StyleSheet.absoluteFill}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => isCreatingCanvas}
+              onResponderGrant={(e) => handleTouch(e)}
+              onResponderMove={(e) => handleTouch(e, true)}
+              onResponderRelease={handleTouchEnd}
+              pointerEvents={
+                isCreatingCanvas || textCanvasMode === null ? 'auto' : 'box-none'
+              }
+            />
+          )}
 
+          {/* Preview canvas during creation */}
           {previewCanvas && previewCanvas.width > 0 && (
             <View
               style={{
@@ -242,6 +247,7 @@ export default function FullscreenEditor({
             />
           )}
 
+          {/* Floating canvas widgets */}
           {canvasWidgets.map((widget) => (
             <FloatingCanvasWidget
               key={widget.id}

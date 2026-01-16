@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   PanResponder,
@@ -26,6 +26,7 @@ interface MarkUpModalProps {
   visible?: boolean;
   onColorChange?: (color: string) => void;
   onThicknessChange?: (thickness: number) => void;
+  theme?: any;
 }
 
 const MarkUpModal: React.FC<MarkUpModalProps> = ({
@@ -34,13 +35,30 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
   visible = true,
   onColorChange,
   onThicknessChange,
+  theme,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [side, setSide] = useState<'left' | 'right'>('right');
   const [isLocked, setIsLocked] = useState(false);
   const [isPressing, setIsPressing] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('#000000');
+  
+  // Determine initial color based on theme
+  const getInitialColor = () => {
+    if (!theme) return '#000000';
+    // If theme.text is light/white, we're in dark mode
+    const isDarkMode = theme.text && (theme.text.toLowerCase().includes('fff') || theme.text.toLowerCase().includes('white'));
+    return isDarkMode ? '#FFFFFF' : '#000000';
+  };
+  
+  const [selectedColor, setSelectedColor] = useState(getInitialColor());
   const [selectedThickness, setSelectedThickness] = useState(4);
+
+  // Update initial color when theme changes
+  useEffect(() => {
+    const initialColor = getInitialColor();
+    setSelectedColor(initialColor);
+    onColorChange?.(initialColor);
+  }, [theme]);
 
   // Animated Values
   const pan = useRef(
@@ -71,6 +89,16 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
       }),
     ]).start();
   }, [isOpen, isLocked, expandAnim, backdropOpacity]);
+
+  const handleColorChange = useCallback((color: string) => {
+    setSelectedColor(color);
+    onColorChange?.(color);
+  }, [onColorChange]);
+
+  const handleThicknessChange = useCallback((thickness: number) => {
+    setSelectedThickness(thickness);
+    onThicknessChange?.(thickness);
+  }, [onThicknessChange]);
 
   const panResponder = useMemo(
     () =>
@@ -206,19 +234,14 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
               <View style={styles.divider} />
               <ColorPicker
                 current={selectedColor}
-                onSelect={(c) => {
-                  setSelectedColor(c);
-                  onColorChange?.(c);
-                }}
+                onSelect={handleColorChange}
+                theme={theme}
               />
               <View style={styles.divider} />
               <ThicknessPicker
                 current={selectedThickness}
                 selectedColor={selectedColor}
-                onSelect={(t) => {
-                  setSelectedThickness(t);
-                  onThicknessChange?.(t);
-                }}
+                onSelect={handleThicknessChange}
               />
               <View style={styles.divider} />
               <TouchableOpacity

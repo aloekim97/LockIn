@@ -1,14 +1,11 @@
-// components/InlineDrawingCanvas.tsx
-import React, { useRef, useState } from 'react';
-import { View, StyleSheet, PanResponder } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-
-export interface DrawingPath {
-  points: { x: number; y: number }[];
-  color: string;
-  width: number;
-  timestamp: number;
-}
+import {
+  useDrawing,
+  pathToSvgString,
+} from '../../../../hooks/canvas/useDrawing';
+import type { DrawingPath } from '../../../../hooks/canvas/useDrawing';
 
 interface InlineDrawingCanvasProps {
   paths: DrawingPath[];
@@ -23,55 +20,23 @@ export default function InlineDrawingCanvas({
   color,
   strokeWidth,
 }: InlineDrawingCanvasProps) {
-  const [currentPath, setCurrentPath] = useState<DrawingPath | null>(null);
+  const pathsRef = useRef<DrawingPath[]>(paths);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        const { locationX, locationY } = evt.nativeEvent;
-        const newPath: DrawingPath = {
-          points: [{ x: locationX, y: locationY }],
-          color,
-          width: strokeWidth,
-          timestamp: Date.now(),
-        };
-        setCurrentPath(newPath);
-      },
-      onPanResponderMove: (evt) => {
-        if (currentPath) {
-          const { locationX, locationY } = evt.nativeEvent;
-          const updatedPath = {
-            ...currentPath,
-            points: [...currentPath.points, { x: locationX, y: locationY }],
-          };
-          setCurrentPath(updatedPath);
-        }
-      },
-      onPanResponderRelease: () => {
-        if (currentPath && currentPath.points.length > 1) {
-          onPathsChange([...paths, currentPath]);
-        }
-        setCurrentPath(null);
-      },
-    })
-  ).current;
+  useEffect(() => {
+    pathsRef.current = paths;
+  }, [paths]);
 
-  const pathToSvgString = (path: DrawingPath): string => {
-    if (path.points.length === 0) return '';
-    const [first, ...rest] = path.points;
-    let d = `M ${first.x} ${first.y}`;
-    for (const point of rest) {
-      d += ` L ${point.x} ${point.y}`;
-    }
-    return d;
-  };
+  const { currentPath, panResponder } = useDrawing({
+    color,
+    strokeWidth,
+    onPathComplete: (path) => {
+      onPathsChange([...pathsRef.current, path]);
+    },
+  });
 
   return (
     <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
       <Svg style={StyleSheet.absoluteFill}>
-        {/* Render saved paths */}
         {paths.map((path, index) => (
           <Path
             key={`path-${path.timestamp}-${index}`}
@@ -83,7 +48,6 @@ export default function InlineDrawingCanvas({
             strokeLinejoin="round"
           />
         ))}
-        {/* Render current path being drawn */}
         {currentPath && currentPath.points.length > 0 && (
           <Path
             d={pathToSvgString(currentPath)}

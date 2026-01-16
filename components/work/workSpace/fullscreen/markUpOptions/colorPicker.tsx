@@ -1,14 +1,20 @@
-// components/ColorPicker.tsx
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface ColorPickerProps {
   current: string;
   onSelect: (color: string) => void;
+  theme?: any;
 }
 
-const ColorPicker: React.FC<ColorPickerProps> = ({ current, onSelect }) => {
-  const colors = ['#000000', '#4CAF50', '#2196F3', '#FF4444', '#FFA500'];
+const ColorPicker: React.FC<ColorPickerProps> = ({
+  current,
+  onSelect,
+  theme,
+}) => {
+  const themeColor = theme?.text || '#FFFFFF';
+  const colors = [themeColor, '#4CAF50', '#2196F3', '#FF4444', '#FFA500'];
+  const borderColor = theme?.text || '#FFFFFF';
 
   return (
     <View style={styles.container}>
@@ -18,9 +24,15 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ current, onSelect }) => {
           onPress={() => onSelect(c)}
           activeOpacity={0.7}
           style={[
-            styles.colorCircle, 
-            { backgroundColor: c }, 
-            current === c && styles.activeCircle
+            styles.colorCircle,
+            { backgroundColor: c },
+            current.toUpperCase() === c.toUpperCase() && [
+              styles.activeCircle,
+              { borderColor },
+            ],
+            (c.toUpperCase() === '#FFFFFF' ||
+              c.toUpperCase() === themeColor.toUpperCase()) &&
+              styles.lightColorBorder,
           ]}
         />
       ))}
@@ -40,8 +52,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   activeCircle: {
-    borderWidth: .5,
-    borderColor: 'white',
+    borderWidth: 2,
     transform: [{ scale: 1.25 }],
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -49,8 +60,14 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
+  whiteBorder: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  lightColorBorder: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
 });
 
 export default ColorPicker;
-
-
