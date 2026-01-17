@@ -1,5 +1,3 @@
-//fix drawing
-
 import React, {
   forwardRef,
   useState,
@@ -20,11 +18,12 @@ import {
   Text,
   ActivityIndicator,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import MarkUpModal from './markUpModal';
 import InlineDrawingCanvas from './inlineDrawingCanvas';
 import { readFile, writeFile } from '../../../../utils/fileSystem';
-
-export type MarkupMode = 'Text' | 'Write' | 'Draw' | 'Erase' | null;
+import { pathToSvgString } from '../../../../hooks/canvas/useDrawing';
+import { PageMode } from './fullScreenEditor';
 
 export interface DrawingPath {
   points: { x: number; y: number }[];
@@ -55,8 +54,9 @@ interface TextCanvasProps
   };
   containerStyle?: ViewStyle;
   showLineBorders?: boolean;
-  onModeChange?: (mode: MarkupMode) => void;
+  onModeChange?: (mode: PageMode) => void;
   onDataChange?: (data: MarkupData) => void;
+  pageMode: PageMode;
 }
 
 export interface TextCanvasRef {
@@ -80,6 +80,7 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
       editable = true,
       onModeChange,
       onDataChange,
+      pageMode,
       ...props
     },
     ref
@@ -93,18 +94,18 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
 
     const currentTheme = theme || defaultTheme;
     const [containerHeight, setContainerHeight] = useState(0);
-    const [mode, setMode] = useState<MarkupMode>(null);
+    const [mode, setMode] = useState<PageMode>(null);
     const [drawingPaths, setDrawingPaths] = useState<DrawingPath[]>([]);
     const [writingPaths, setWritingPaths] = useState<DrawingPath[]>([]);
     const [textContent, setTextContent] = useState('');
     const [loading, setLoading] = useState(true);
-    
+
     // Determine initial color based on theme
     const getInitialColor = () => {
       if (!currentTheme.text) return '#000000';
       return currentTheme.text;
     };
-    
+
     const [selectedColor, setSelectedColor] = useState(getInitialColor());
     const [selectedThickness, setSelectedThickness] = useState(4);
     const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -252,7 +253,7 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
     };
 
     const handleModeChange = useCallback(
-      (newMode: MarkupMode) => {
+      (newMode: PageMode) => {
         setMode(newMode);
         onModeChange?.(newMode);
 
@@ -361,6 +362,45 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
           </View>
         )}
 
+        {/* Always show existing drawings */}
+        {drawingPaths.length > 0 && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Svg style={StyleSheet.absoluteFill}>
+              {drawingPaths.map((path, index) => (
+                <Path
+                  key={`drawing-${path.timestamp}-${index}`}
+                  d={pathToSvgString(path)}
+                  stroke={path.color}
+                  strokeWidth={path.width}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </Svg>
+          </View>
+        )}
+
+        {/* Always show existing writings */}
+        {writingPaths.length > 0 && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Svg style={StyleSheet.absoluteFill}>
+              {writingPaths.map((path, index) => (
+                <Path
+                  key={`writing-${path.timestamp}-${index}`}
+                  d={pathToSvgString(path)}
+                  stroke={path.color}
+                  strokeWidth={path.width}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </Svg>
+          </View>
+        )}
+
+        {/* Active drawing canvas - only when in Draw mode */}
         {mode === 'Draw' && (
           <InlineDrawingCanvas
             paths={drawingPaths}
@@ -370,6 +410,7 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
           />
         )}
 
+        {/* Active writing canvas - only when in Write mode */}
         {mode === 'Write' && (
           <InlineDrawingCanvas
             paths={writingPaths}
@@ -382,10 +423,11 @@ const TextCanvas = forwardRef<TextCanvasRef, TextCanvasProps>(
         {!isKeyboardVisible && (
           <MarkUpModal
             onModeChange={handleModeChange}
-            currentMode={mode}
+            currentMode={pageMode}
             onColorChange={handleColorChange}
             onThicknessChange={handleThicknessChange}
             theme={currentTheme}
+            visible={pageMode === 'Read' ? false : true}
           />
         )}
       </View>

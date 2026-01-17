@@ -1,4 +1,4 @@
-// components/FullscreenHeader.tsx
+// work on dropdown options for read button
 import React from 'react';
 import {
   View,
@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { PageMode } from './fullScreenEditor';
 
 interface FullscreenHeaderProps {
   fileName: string;
@@ -16,15 +17,15 @@ interface FullscreenHeaderProps {
   canUndo: boolean;
   canRedo: boolean;
   errorColor: string;
-  mode: 'Text' | 'Draw';
+  mode: PageMode;
   isReadMode: boolean;
   onDiscard: () => void;
   onToggleMode: () => void;
-  onToggleReadMode: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onClose: () => void;
   onAddCanvas?: () => void;
+  setTextCanvasMode: (mode: PageMode) => void;
 }
 
 export default function FullscreenHeader({
@@ -38,12 +39,16 @@ export default function FullscreenHeader({
   isReadMode,
   onDiscard,
   onToggleMode,
-  onToggleReadMode,
   onUndo,
   onRedo,
   onClose,
   onAddCanvas,
+  setTextCanvasMode,
 }: FullscreenHeaderProps) {
+  const handleRead = () => {
+    if (mode === 'Read') setTextCanvasMode('Draw');
+    else setTextCanvasMode('Read');
+  };
   return (
     <View
       style={[styles.header, { borderBottomColor: theme.textSecondary + '30' }]}
@@ -58,7 +63,7 @@ export default function FullscreenHeader({
         >
           {fileName}
         </Text>
-        {isReadMode && (
+        {mode === 'Read' && (
           <View
             style={[
               styles.readModeBadge,
@@ -72,17 +77,17 @@ export default function FullscreenHeader({
         )}
       </View>
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         onPress={onAddCanvas}
         style={[styles.iconButton, { backgroundColor: theme.primary }]}
       >
         <Ionicons name="add-circle" size={20} color="white" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <View style={styles.headerButtons}>
         {/* Read Mode Toggle Button */}
         <TouchableOpacity
-          onPress={onToggleReadMode}
+          onPress={handleRead}
           style={[
             styles.readModeButton,
             {

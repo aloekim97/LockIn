@@ -1,4 +1,10 @@
-import React, { useRef, useState, useMemo, useCallback, useEffect } from 'react';
+import React, {
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+} from 'react';
 import {
   StyleSheet,
   PanResponder,
@@ -18,11 +24,11 @@ import WritingOption from './markUpOptions/writingOptions';
 import ColorPicker from './markUpOptions/colorPicker';
 import ThicknessPicker from './markUpOptions/thicknessPicker';
 import ActiveIcon from './markUpOptions/activeIcon';
-import { MarkupMode } from './textCanvas';
+import { PageMode } from './fullScreenEditor';
 
 interface MarkUpModalProps {
-  onModeChange: (mode: MarkupMode) => void;
-  currentMode: MarkupMode;
+  onModeChange: (mode: PageMode) => void;
+  currentMode: PageMode;
   visible?: boolean;
   onColorChange?: (color: string) => void;
   onThicknessChange?: (thickness: number) => void;
@@ -46,10 +52,13 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
   const getInitialColor = () => {
     if (!theme) return '#000000';
     // If theme.text is light/white, we're in dark mode
-    const isDarkMode = theme.text && (theme.text.toLowerCase().includes('fff') || theme.text.toLowerCase().includes('white'));
+    const isDarkMode =
+      theme.text &&
+      (theme.text.toLowerCase().includes('fff') ||
+        theme.text.toLowerCase().includes('white'));
     return isDarkMode ? '#FFFFFF' : '#000000';
   };
-  
+
   const [selectedColor, setSelectedColor] = useState(getInitialColor());
   const [selectedThickness, setSelectedThickness] = useState(4);
 
@@ -90,15 +99,21 @@ const MarkUpModal: React.FC<MarkUpModalProps> = ({
     ]).start();
   }, [isOpen, isLocked, expandAnim, backdropOpacity]);
 
-  const handleColorChange = useCallback((color: string) => {
-    setSelectedColor(color);
-    onColorChange?.(color);
-  }, [onColorChange]);
+  const handleColorChange = useCallback(
+    (color: string) => {
+      setSelectedColor(color);
+      onColorChange?.(color);
+    },
+    [onColorChange]
+  );
 
-  const handleThicknessChange = useCallback((thickness: number) => {
-    setSelectedThickness(thickness);
-    onThicknessChange?.(thickness);
-  }, [onThicknessChange]);
+  const handleThicknessChange = useCallback(
+    (thickness: number) => {
+      setSelectedThickness(thickness);
+      onThicknessChange?.(thickness);
+    },
+    [onThicknessChange]
+  );
 
   const panResponder = useMemo(
     () =>

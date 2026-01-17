@@ -12,9 +12,9 @@ import { useRef, useState, useEffect } from 'react';
 import FullscreenHeader from './fullscreenHeader';
 import FloatingCanvasWidget from './canvasWidget';
 import TextCanvas from './textCanvas';
-import type { MarkupMode } from './textCanvas';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+export type PageMode = 'Text' | 'Write' | 'Draw' | 'Erase' | 'Read' | null;
 
 interface FullscreenEditorProps {
   visible: boolean;
@@ -70,7 +70,7 @@ export default function FullscreenEditor({
   const DOUBLE_TAP_DELAY = 400;
   const [canvasWidgets, setCanvasWidgets] = useState<CanvasWidget[]>([]);
   const [activeCanvasId, setActiveCanvasId] = useState<string | null>(null);
-  const [textCanvasMode, setTextCanvasMode] = useState<MarkupMode>(null);
+  const [textCanvasMode, setTextCanvasMode] = useState<PageMode>('Read');
 
   const [isCreatingCanvas, setIsCreatingCanvas] = useState(false);
   const [canvasCreationStart, setCanvasCreationStart] = useState<{
@@ -80,7 +80,7 @@ export default function FullscreenEditor({
   const [previewCanvas, setPreviewCanvas] = useState<CanvasWidget | null>(null);
 
   const isEditingLocked =
-    isReadMode ||
+    textCanvasMode === 'Read' ||
     activeCanvasId !== null ||
     textCanvasMode === 'Draw' ||
     textCanvasMode === 'Write';
@@ -159,9 +159,10 @@ export default function FullscreenEditor({
     Keyboard.dismiss();
   };
 
-  const handleTextCanvasModeChange = (newMode: MarkupMode) => {
+  const handleTextCanvasModeChange = (newMode: PageMode) => {
     setTextCanvasMode(newMode);
-    if (newMode === 'Draw' || newMode === 'Write') Keyboard.dismiss();
+    if (newMode === 'Draw' || newMode === 'Write' || newMode === 'Read')
+      Keyboard.dismiss();
   };
 
   return (
@@ -185,12 +186,12 @@ export default function FullscreenEditor({
           errorColor={errorColor}
           isReadMode={isReadMode}
           onDiscard={onDiscard}
-          onToggleReadMode={toggleReadMode}
+          setTextCanvasMode={setTextCanvasMode}
           onUndo={onUndo}
           onRedo={onRedo}
           onClose={onClose}
           onAddCanvas={addCanvasWidget}
-          mode={textCanvasMode === 'Draw' ? 'Draw' : 'Text'}
+          mode={textCanvasMode}
           onToggleMode={() => {
             const nextMode = textCanvasMode === 'Draw' ? null : 'Draw';
             handleTextCanvasModeChange(nextMode);
@@ -205,12 +206,12 @@ export default function FullscreenEditor({
             placeholder="Start typing..."
             editable={!isEditingLocked && !isCreatingCanvas}
             onModeChange={handleTextCanvasModeChange}
-            style={{
-              backgroundColor: isReadMode
-                ? theme.background + '80'
-                : theme.background,
-            }}
-            pointerEvents={textCanvasMode === 'Draw' || textCanvasMode === 'Write' ? 'none' : 'auto'}
+            pointerEvents={
+              textCanvasMode === 'Draw' || textCanvasMode === 'Write'
+                ? 'none'
+                : 'auto'
+            }
+            pageMode={textCanvasMode}
           />
 
           {/* Touch handler for canvas creation */}
@@ -223,7 +224,9 @@ export default function FullscreenEditor({
               onResponderMove={(e) => handleTouch(e, true)}
               onResponderRelease={handleTouchEnd}
               pointerEvents={
-                isCreatingCanvas || textCanvasMode === null ? 'auto' : 'box-none'
+                isCreatingCanvas || textCanvasMode === null
+                  ? 'auto'
+                  : 'box-none'
               }
             />
           )}
